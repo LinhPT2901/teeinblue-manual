@@ -1,0 +1,701 @@
+{
+  "info": {
+    "_postman_id": "tib-5424-order-items-pickup-0001",
+    "name": "TIB-5424 — GET order-items khong tra pickup items (staging)",
+    "description": "Bo test API cho **TIB-5424 — Update app for Shopify \"ship and pickup in one order\"** (project TIB tren Testlane/Jira).\n\n## Bug dang kiem tra (comment dev, 2026-09-28)\n> api GET /order-items khong tra ve pickup items nua, tat ca cac trang o bulk fulfill deu khong hien pickup item.\n\nTheo thiet ke ban dau cua TIB-5424 (comment 51222): item pickup **duoc phep hien thi** (co tag \"Pickup\"), chi bi **chan khi fulfill**. Bug nay (neu dung) la mot **regression rong hon**: pickup item bi loai ngay tu buoc liet ke/GET, khong con la vi tri bi chan khi fulfill nua. Bo nay CHI kiem tra phan GET/liet ke (hien thi), khong test lai phan chan fulfill (da co trong scope goc cua TIB-5424).\n\n## Moi truong & endpoint\n- Portal API (noi bo, JWT): `{{baseUrl}}/api/instances/{instanceId}/order-items` — endpoint duoc dev nhac toi, nghi la endpoint cac trang Bulk Fulfill goi (**chua verify qua network tab, can xac nhan**).\n- Public/Partner API: `{{baseUrl}}/openapi/v1/orders`, `/openapi/v1/orders/{orderId}` — khong co `/order-items` rieng, item (neu co) nam long trong response order. Kiem tra de biet bug co lan sang API doi tac hay khong.\n- Base: `https://staging-api.teeinblue.com` (dung chung 1 host cho ca hai, giong TIB-031).\n\n## Du lieu can chuan bi TRUOC khi chay (chua co san trong repo nay)\nTIB-5424 yeu cau mot **Shopify Plus dev store co feature preview \"Ship and pickup in one order\"** — day KHONG phai `instance_id_1` (linh-tib-staging) va cung KHONG chac la `instance_id_2` (linh-tib-checkout, Plus nhung tao truoc khi co feature preview nay, chua xac nhan co bat duoc feature preview nay hay khong).\n\nTheo comment TIB-5424 (Step 1-5): tao dev store moi + bat feature preview + bat local pickup + dat 1 order gom **1 item chon Ship + 1 item chon Pickup**. Sau khi co store nay, dien vao **collection variables**:\n- `instanceId` — instance id tren teeinblue cua store do\n- `orderId` — internal order id (teeinblue) cua order hon hop\n- `platformOrderId` — Shopify order id/name cua order do (dung cho public API)\n- `shippedOrderItemId` — id noi bo cua item chon SHIP (control, luon phai xuat hien)\n- `pickupOrderItemId` — id noi bo cua item chon PICKUP (item dev bao bi mat)\n\nLay `shippedOrderItemId` / `pickupOrderItemId` bang cach mo trang Bulk Fulfill / Order detail tren Portal, doc id item tu network tab hoac tu DOM (Devtools).\n\n## Diem chua chac chan — CAN DEV/PO XAC NHAN (khong tu suy dien)\n1. Ten field JSON danh dau item la pickup (vi du `delivery_method`, `requires_shipping`, `fulfillment_type`...) — hien khong co spec/example luu trong repo.\n2. Endpoint `GET /api/instances/{id}/order-items` co chinh xac la endpoint Bulk Fulfill goi khong, hay Bulk Fulfill dung endpoint khac.\n3. Public API co expose thong tin item-level delivery method/pickup hay khong (co the hoan toan khong co, thi day la N/A chu khong phai bug).\n\nCac test duoi day duoc thiet ke de KHONG phu thuoc vao cau tra loi cho 3 diem tren: assert theo **id item** (giong pattern da dung trong TIB-031), va log full raw JSON de doi chieu bang mat / gui cho dev.\n\n## Cach chay\n1. Chon environment **TIB Staging — Open API** (goc tren ben phai). Environment nay giu san `partnerToken`, `ordersReadToken`, `baseUrl`.\n2. Dien 5 collection variable o tren (`instanceId`, `orderId`, `platformOrderId`, `shippedOrderItemId`, `pickupOrderItemId`) va `userA_email`/`userA_password`.\n3. Chay folder **0. Setup** truoc (lay JWT + sanity check instance).\n4. Chay folder **1** (Internal API) va **2** (Public API).\n\n## Luu y\n- **JWT staging chi song 15 phut.** Thay 401 hang loat thi chay lai `Setup — Login`.\n- Cloudflare chan User-Agent la (403, error 1010) — moi request da co header `User-Agent` gia trinh duyet, dung xoa.\n- day la bo test **chan doan** (diagnostic) hon la bo test **khang dinh** — vi con nhieu diem chua duoc dev/PO xac nhan (xem muc tren). Ket qua PASS/FAIL tu cac test id-based van co gia tri, nhung dung dung mot minh de dong bug — doi chieu voi cau tra loi cua dev cho 3 diem chua chac chan.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Setup — token & sanity check",
+      "item": [
+        {
+          "name": "Setup — Login → token (Portal JWT)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login tra 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var b = {};",
+                  "try { b = pm.response.json(); } catch (e) {}",
+                  "var tok = b.token || b.access_token || (b.data && (b.data.token || b.data.access_token));",
+                  "",
+                  "pm.test('Luu token vao collection variable', function () {",
+                  "  pm.expect(tok, 'khong tim thay token trong response').to.be.a('string').and.not.empty;",
+                  "  pm.collectionVariables.set('token', tok);",
+                  "  console.log('token da luu (' + tok.slice(0, 12) + '...)');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "https://staging-portal.teeinblue.com"
+              },
+              {
+                "key": "Referer",
+                "value": "https://staging-portal.teeinblue.com/"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userA_email}}\",\n  \"password\": \"{{userA_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            },
+            "description": "Lay JWT cho tai khoan QA co quyen tren instance {{instanceId}}. JWT staging chi song 15 phut — chay lai request nay khi cac request khac tra 401."
+          }
+        },
+        {
+          "name": "Setup — Xac nhan instance la store Plus co feature preview (thu cong)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "var b = {}; try { b = pm.response.json(); } catch (e) {}",
+                  "var inst = b.data || b;",
+                  "console.log('instance domain:', inst.domain, '| plan/tags (neu co):', JSON.stringify(inst.plan_name || inst.tags || '(khong co field nay trong response)'));",
+                  "console.log('>>> Tu kiem tra bang mat: instance nay PHAI la Shopify Plus dev store da bat feature preview \"Ship and pickup in one order\" (xem TIB-5424 comment Step 1-4). Response instance thuong KHONG co field plan/feature-preview de assert tu dong duoc.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Sanity check instanceId hop le va thuoc quyen truy cap cua token. Endpoint nay KHONG xac nhan duoc feature preview cua Shopify — chi xac nhan instance ton tai. Viec store co dung feature preview hay khong phai tu kiem lai theo Step 1-4 trong comment TIB-5424 (Shopify Partner Dashboard)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Internal API — GET order-items (endpoint duoc cac trang Bulk Fulfill goi)",
+      "description": "Theo comment dev cap nhat 2026-09-28 tren TIB-5424: `GET /order-items` khong con tra ve pickup items, khien tat ca cac trang Bulk Fulfill khong hien pickup item. Day la endpoint noi bo `GET /api/instances/{id}/order-items` (da xac nhan ton tai va co filter created_at trong TIB-031).\n\n**Chua xac nhan**: ten field nao trong response danh dau item la \"pickup\" (co the la `delivery_method`, `requires_shipping`, `fulfillment_type`, ten khac, hoac hoan toan khong co field rieng ma phai suy tu quan he voi Shopify Fulfillment Order). Cac request duoi day KHONG assert theo field do — chi assert theo id cua item (giong pattern TIB-031), va log raw JSON cua item dau tien de doi chieu bang mat / hoi dev.\n\n**Can dev/PO xac nhan truoc khi chot bug**: exact field pickup (neu co), va endpoint nay co dung la endpoint cac trang Bulk Fulfill goi hay khong (chua verify qua network tab).",
+      "item": [
+        {
+          "name": "TC-1 — Goi mac dinh (per_page=100, khong filter) → phai co ca item SHIP va item PICKUP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token portal het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('[TC-1] so item tra ve:', ids.length, '| ids:', ids.join(', ') || '(rong)');",
+                  "if (rows[0]) { console.log('[TC-1] field cua item dau tien (doi chieu field nao the hien pickup):', JSON.stringify(rows[0], null, 2)); }",
+                  "",
+                  "var shippedId = String(pm.variables.get('shippedOrderItemId'));",
+                  "var pickupId = String(pm.variables.get('pickupOrderItemId'));",
+                  "",
+                  "pm.test('Item SHIP (control, khong bi anh huong) CO trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(shippedId);",
+                  "});",
+                  "pm.test('Item PICKUP CO trong list (bug TIB-5424: dev bao GET order-items khong tra pickup item nua)', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(pickupId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=100",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Mo phong trang Bulk Fulfill goi khong filter, per_page lon de lay het item cua instance. Ky vong: ca {{shippedOrderItemId}} va {{pickupOrderItemId}} co mat.\n\nBug TIB-5424 (theo dev report): thuc te item pickup KHONG xuat hien."
+          }
+        },
+        {
+          "name": "TC-2 — Trang 1 (per_page=1&page=1)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token portal het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('[TC-2/trang1] so item tra ve:', ids.length, '| ids:', ids.join(', ') || '(rong)');",
+                  "if (rows[0]) { console.log('[TC-2/trang1] field cua item dau tien (doi chieu field nao the hien pickup):', JSON.stringify(rows[0], null, 2)); }",
+                  "",
+                  "var shippedId = String(pm.variables.get('shippedOrderItemId'));",
+                  "var pickupId = String(pm.variables.get('pickupOrderItemId'));",
+                  "",
+                  "pm.test('Item SHIP (control, khong bi anh huong) CO trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(shippedId);",
+                  "});",
+                  "pm.test('Item PICKUP CO trong list (bug TIB-5424: dev bao GET order-items khong tra pickup item nua)', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(pickupId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=1&page=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Kiem tra tung trang rieng — dev bao \"tat ca cac trang deu khong hien pickup item\", nen phai quet qua nhieu trang thay vi chi goi 1 lan per_page lon. Neu instance co nhieu hon 2 order item, them cac request Trang 3, Trang 4... theo cung pattern (tang page, giu per_page=1) cho den khi thay {{pickupOrderItemId}}."
+          }
+        },
+        {
+          "name": "TC-3 — Trang 2 (per_page=1&page=2)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token portal het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('[TC-3/trang2] so item tra ve:', ids.length, '| ids:', ids.join(', ') || '(rong)');",
+                  "if (rows[0]) { console.log('[TC-3/trang2] field cua item dau tien (doi chieu field nao the hien pickup):', JSON.stringify(rows[0], null, 2)); }",
+                  "",
+                  "var shippedId = String(pm.variables.get('shippedOrderItemId'));",
+                  "var pickupId = String(pm.variables.get('pickupOrderItemId'));",
+                  "",
+                  "pm.test('Item SHIP (control, khong bi anh huong) CO trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(shippedId);",
+                  "});",
+                  "pm.test('Item PICKUP CO trong list (bug TIB-5424: dev bao GET order-items khong tra pickup item nua)', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(pickupId);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=1&page=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Xem mo ta TC-2. Neu {{pickupOrderItemId}} khong nam o trang 1 hay trang 2, doi lai per_page/page cho khop vi tri thuc te cua item nay trong danh sach (sort mac dinh thuong theo created_at desc)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Public/Partner API — GET /orders, /orders/{orderId} (kiem tra anh huong tuong tu)",
+      "description": "Public API (`{{baseUrl}}/openapi/v1/...`) khong co endpoint `/order-items` rieng — order items (neu co) duoc long trong response cua `/orders` va `/orders/{orderId}`. **Chua co spec/example response duoc luu lai trong repo nen chua chac cau truc field cua line item trong public API** — cac request duoi day log toan bo raw response de doi chieu bang mat, va chi assert \"cung\" (indexOf) cho id/order thay vi assert cung mot field cu the.\n\nMuc tieu: xac nhan bug tuong tu (thieu pickup item) co xay ra o public API hay khong, vi partner tich hop co the doc order qua API nay thay vi Portal.",
+      "item": [
+        {
+          "name": "TC-4 — GET /orders/{orderId} (full scope token) — order hon hop ship+pickup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "console.log('[TC-4] raw response:', JSON.stringify(body, null, 2).slice(0, 4000));",
+                  "",
+                  "var raw = JSON.stringify(body);",
+                  "var shippedId = String(pm.variables.get('shippedOrderItemId'));",
+                  "var pickupId = String(pm.variables.get('pickupOrderItemId'));",
+                  "var platformOrderId = String(pm.variables.get('platformOrderId'));",
+                  "",
+                  "pm.test('Response co chua dau hieu cua order dang test (platformOrderId)', function () {",
+                  "  pm.expect(raw.indexOf(platformOrderId) !== -1, 'khong thay platformOrderId ' + platformOrderId + ' trong response').to.be.true;",
+                  "});",
+                  "",
+                  "// Public API co the KHONG tra line items chi tiet (chua co spec/example de chac chan cau truc).",
+                  "// Neu response co chua id cua 2 item noi bo, kiem tra luon; neu khong, day la N/A can dev xac nhan public API co expose item-level delivery method hay khong.",
+                  "var hasShippedId = raw.indexOf(shippedId) !== -1;",
+                  "var hasPickupId = raw.indexOf(pickupId) !== -1;",
+                  "console.log('[TC-4] shippedOrderItemId co xuat hien trong raw response?', hasShippedId, '| pickupOrderItemId co xuat hien?', hasPickupId);",
+                  "console.log('[TC-4] Neu ca hai false: public API co the khong expose order_items.id noi bo — doi chieu bang line_item id/sku cua Shopify thay the, hoac hoi dev cau truc response.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/openapi/v1/orders/{{platformOrderId}}?include_customization=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi",
+                "v1",
+                "orders",
+                "{{platformOrderId}}"
+              ],
+              "query": [
+                {
+                  "key": "include_customization",
+                  "value": "false"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{partnerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "partnerToken = alias cua api_token trong environment 'TIB Staging — Open API' (scope orders:read + cac scope khac). {{platformOrderId}} la ID/ten order Shopify (hoac internal order id — endpoint nhan ca hai theo doc cong khai) cua order hon hop."
+          }
+        },
+        {
+          "name": "TC-5 — GET /orders (list, search theo platformOrderId)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "console.log('[TC-5] raw response:', JSON.stringify(body, null, 2).slice(0, 4000));",
+                  "",
+                  "var raw = JSON.stringify(body);",
+                  "var shippedId = String(pm.variables.get('shippedOrderItemId'));",
+                  "var pickupId = String(pm.variables.get('pickupOrderItemId'));",
+                  "var platformOrderId = String(pm.variables.get('platformOrderId'));",
+                  "",
+                  "pm.test('Response co chua dau hieu cua order dang test (platformOrderId)', function () {",
+                  "  pm.expect(raw.indexOf(platformOrderId) !== -1, 'khong thay platformOrderId ' + platformOrderId + ' trong response').to.be.true;",
+                  "});",
+                  "",
+                  "// Public API co the KHONG tra line items chi tiet (chua co spec/example de chac chan cau truc).",
+                  "// Neu response co chua id cua 2 item noi bo, kiem tra luon; neu khong, day la N/A can dev xac nhan public API co expose item-level delivery method hay khong.",
+                  "var hasShippedId = raw.indexOf(shippedId) !== -1;",
+                  "var hasPickupId = raw.indexOf(pickupId) !== -1;",
+                  "console.log('[TC-5] shippedOrderItemId co xuat hien trong raw response?', hasShippedId, '| pickupOrderItemId co xuat hien?', hasPickupId);",
+                  "console.log('[TC-5] Neu ca hai false: public API co the khong expose order_items.id noi bo — doi chieu bang line_item id/sku cua Shopify thay the, hoac hoi dev cau truc response.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/openapi/v1/orders?s={{platformOrderId}}&per_page=25",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "{{platformOrderId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "25"
+                }
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{partnerToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "Kiem tra o cap list (khong phai get-by-id) — dung param `s` (fuzzy search theo ten/reference order) de loc ve dung order dang test."
+          }
+        },
+        {
+          "name": "TC-6 — GET /orders/{orderId} voi token CHI co scope orders:read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "console.log('[TC-6] raw response:', JSON.stringify(body, null, 2).slice(0, 4000));",
+                  "",
+                  "var raw = JSON.stringify(body);",
+                  "var shippedId = String(pm.variables.get('shippedOrderItemId'));",
+                  "var pickupId = String(pm.variables.get('pickupOrderItemId'));",
+                  "var platformOrderId = String(pm.variables.get('platformOrderId'));",
+                  "",
+                  "pm.test('Response co chua dau hieu cua order dang test (platformOrderId)', function () {",
+                  "  pm.expect(raw.indexOf(platformOrderId) !== -1, 'khong thay platformOrderId ' + platformOrderId + ' trong response').to.be.true;",
+                  "});",
+                  "",
+                  "// Public API co the KHONG tra line items chi tiet (chua co spec/example de chac chan cau truc).",
+                  "// Neu response co chua id cua 2 item noi bo, kiem tra luon; neu khong, day la N/A can dev xac nhan public API co expose item-level delivery method hay khong.",
+                  "var hasShippedId = raw.indexOf(shippedId) !== -1;",
+                  "var hasPickupId = raw.indexOf(pickupId) !== -1;",
+                  "console.log('[TC-6] shippedOrderItemId co xuat hien trong raw response?', hasShippedId, '| pickupOrderItemId co xuat hien?', hasPickupId);",
+                  "console.log('[TC-6] Neu ca hai false: public API co the khong expose order_items.id noi bo — doi chieu bang line_item id/sku cua Shopify thay the, hoac hoi dev cau truc response.');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/openapi/v1/orders/{{platformOrderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi",
+                "v1",
+                "orders",
+                "{{platformOrderId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{ordersReadToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "description": "ordersReadToken = orders_read_api_token trong environment (chi scope orders:read). Dung de loai truong hop bug chi xay ra/khac di theo scope token."
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://staging-api.teeinblue.com",
+      "type": "string"
+    },
+    {
+      "key": "userA_email",
+      "value": "FILL_userA_email",
+      "type": "string"
+    },
+    {
+      "key": "userA_password",
+      "value": "FILL_userA_password",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT, set tu dong boi Setup — Login. Song 15 phut."
+    },
+    {
+      "key": "partnerToken",
+      "value": "",
+      "type": "string",
+      "description": "Lay tu environment 'TIB Staging — Open API' (alias cua api_token, full scope)."
+    },
+    {
+      "key": "ordersReadToken",
+      "value": "",
+      "type": "string",
+      "description": "Lay tu environment 'TIB Staging — Open API' (orders_read_api_token, CHI scope orders:read)."
+    },
+    {
+      "key": "instanceId",
+      "value": "FILL_instanceId",
+      "type": "string",
+      "description": "Instance cua store Plus co feature preview 'Ship and pickup in one order' + co order hon hop. KHONG dung instance_id_1/instance_id_2 mac dinh tru khi da xac nhan store do co feature preview nay."
+    },
+    {
+      "key": "orderId",
+      "value": "FILL_orderId",
+      "type": "string",
+      "description": "Internal teeinblue order id cua order hon hop ship+pickup."
+    },
+    {
+      "key": "platformOrderId",
+      "value": "FILL_platformOrderId",
+      "type": "string",
+      "description": "Shopify order id/name cua order hon hop, dung cho public API."
+    },
+    {
+      "key": "shippedOrderItemId",
+      "value": "FILL_shippedOrderItemId",
+      "type": "string",
+      "description": "Id noi bo cua item chon SHIP (control) trong order hon hop."
+    },
+    {
+      "key": "pickupOrderItemId",
+      "value": "FILL_pickupOrderItemId",
+      "type": "string",
+      "description": "Id noi bo cua item chon PICKUP trong order hon hop — item dev bao bi GET order-items bo qua."
+    }
+  ]
+}

@@ -1,0 +1,243 @@
+{
+  "info": {
+    "name": "Teeinblue Public API - List Customizations",
+    "description": "Postman collection for GET /customizations based on the ReDoc screenshot. Includes simple Postman tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.teeinblue.com/openapi/v1"
+    },
+    {
+      "key": "api_token",
+      "value": "{{api_token}}"
+    },
+    {
+      "key": "search",
+      "value": "ORDER-123"
+    },
+    {
+      "key": "sort",
+      "value": "created_at"
+    },
+    {
+      "key": "sort_type",
+      "value": "desc"
+    },
+    {
+      "key": "per_page",
+      "value": "25"
+    },
+    {
+      "key": "cursor",
+      "value": ""
+    },
+    {
+      "key": "start_date",
+      "value": "2025-01-01T00:00:00Z"
+    },
+    {
+      "key": "end_date",
+      "value": "2025-01-31T23:59:59Z"
+    },
+    {
+      "key": "instance_id_1",
+      "value": "123"
+    },
+    {
+      "key": "instance_id_2",
+      "value": "456"
+    },
+    {
+      "key": "campaign_id",
+      "value": "6789"
+    },
+    {
+      "key": "platform_product_id",
+      "value": "321"
+    },
+    {
+      "key": "include_data",
+      "value": "true"
+    }
+  ],
+  "item": [
+    {
+      "name": "Customizations",
+      "item": [
+        {
+          "name": "GET /customizations - List customizations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "{{search}}",
+                  "description": "Search customizations by order name using fuzzy search.",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "{{sort}}",
+                  "description": "Sort field. Allowed values: created_at, total_price, updated_at. Default: created_at.",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_type",
+                  "value": "{{sort_type}}",
+                  "description": "Sort direction. Allowed values: asc, desc. Default: desc.",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "{{per_page}}",
+                  "description": "Number of records per page. Allowed range: 1-500. Default: 25.",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "{{cursor}}",
+                  "description": "Cursor for retrieving the next set of results from meta.next_cursor.",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{start_date}}",
+                  "description": "Filter customizations created on or after this datetime, inclusive.",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{end_date}}",
+                  "description": "Filter customizations created on or before this datetime, inclusive.",
+                  "disabled": true
+                },
+                {
+                  "key": "instance_ids[]",
+                  "value": "{{instance_id_1}}",
+                  "description": "Filter by instance/store ID. Array query param in bracket form.",
+                  "disabled": true
+                },
+                {
+                  "key": "instance_ids[]",
+                  "value": "{{instance_id_2}}",
+                  "description": "Optional second instance/store ID.",
+                  "disabled": true
+                },
+                {
+                  "key": "campaign_ids[]",
+                  "value": "{{campaign_id}}",
+                  "description": "Filter by campaign ID. Array query param in bracket form.",
+                  "disabled": true
+                },
+                {
+                  "key": "platform_product_ids[]",
+                  "value": "{{platform_product_id}}",
+                  "description": "Filter by platform product ID. Array query param in bracket form.",
+                  "disabled": true
+                },
+                {
+                  "key": "include_data",
+                  "value": "{{include_data}}",
+                  "description": "Include full data and customer_uploads fields in the response. Defaults to false on list endpoint.",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Returns a cursor-paginated list of customizations visible to the authenticated user. Requires customizations:read or orders:read ability."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200, 401, or 403\", function () {",
+                  "  pm.expect([200, 401, 403]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "pm.test(\"Content-Type is JSON\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "pm.test(\"Response body is valid JSON\", function () {",
+                  "  pm.response.json();",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "",
+                  "  pm.test(\"Response has pagination fields\", function () {",
+                  "    pm.expect(jsonData).to.have.property(\"links\");",
+                  "    pm.expect(jsonData).to.have.property(\"meta\");",
+                  "    pm.expect(jsonData).to.have.property(\"data\");",
+                  "  });",
+                  "",
+                  "  pm.test(\"Data is an array\", function () {",
+                  "    pm.expect(jsonData.data).to.be.an(\"array\");",
+                  "  });",
+                  "",
+                  "  pm.test(\"Meta contains per_page\", function () {",
+                  "    pm.expect(jsonData.meta).to.have.property(\"per_page\");",
+                  "  });",
+                  "",
+                  "  if (Array.isArray(jsonData.data) && jsonData.data.length > 0) {",
+                  "    const first = jsonData.data[0];",
+                  "    pm.collectionVariables.set(\"customization_uuid\", first.uuid || \"\");",
+                  "",
+                  "    pm.test(\"First customization has basic fields\", function () {",
+                  "      pm.expect(first).to.have.property(\"id\");",
+                  "      pm.expect(first).to.have.property(\"uuid\");",
+                  "      pm.expect(first).to.have.property(\"created_at\");",
+                  "      pm.expect(first).to.have.property(\"updated_at\");",
+                  "    });",
+                  "  }",
+                  "}",
+                  "",
+                  "if (pm.response.code === 401 || pm.response.code === 403) {",
+                  "  const jsonData = pm.response.json();",
+                  "",
+                  "  pm.test(\"Error response has message\", function () {",
+                  "    pm.expect(jsonData).to.have.property(\"message\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

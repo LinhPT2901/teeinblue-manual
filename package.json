@@ -1,0 +1,13 @@
+{
+  "name": "teeinblue-manual-e2e",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "auth": "node scripts/shopify-login.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

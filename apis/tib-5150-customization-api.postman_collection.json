@@ -1,0 +1,505 @@
+{
+  "info": {
+    "name": "TIB-5150 Customization API Tests",
+    "description": "Postman collection for TIB-5150 - Get customization by UUID with customer upload coverage, include_designs coverage, and auth/not-found scenarios.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.teeinblue.com/openapi/v1"
+    },
+    {
+      "key": "api_token",
+      "value": ""
+    },
+    {
+      "key": "invalid_api_token",
+      "value": "invalid-token"
+    },
+    {
+      "key": "forbidden_api_token",
+      "value": ""
+    },
+    {
+      "key": "orders_read_api_token",
+      "value": ""
+    },
+    {
+      "key": "uuid_one_upload",
+      "value": "c999859f-584b-42df-8ec7-c07c440e4bf9"
+    },
+    {
+      "key": "uuid_two_uploads",
+      "value": "a7f1aad7-4b4d-4e28-9488-a77f6e67298a"
+    },
+    {
+      "key": "uuid_no_upload",
+      "value": "426df573-b096-4729-b3c7-82e22d82c260"
+    },
+    {
+      "key": "uuid_not_found",
+      "value": "00000000-0000-0000-0000-000000000000"
+    }
+  ],
+  "item": [
+    {
+      "name": "Customization API",
+      "item": [
+        {
+          "name": "200 - One customer upload",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_one_upload}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_one_upload}}"
+              ]
+            },
+            "description": "Get customization with exactly one customer upload."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test(\"Content-Type is JSON\", function () {",
+                  "  pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test(\"UUID matches requested UUID\", function () {",
+                  "  pm.expect(jsonData.uuid).to.eql(pm.collectionVariables.get(\"uuid_one_upload\"));",
+                  "});",
+                  "",
+                  "pm.test(\"Top-level contract fields exist\", function () {",
+                  "  pm.expect(jsonData).to.have.property(\"id\");",
+                  "  pm.expect(jsonData).to.have.property(\"uuid\");",
+                  "  pm.expect(jsonData).to.have.property(\"data\");",
+                  "  pm.expect(jsonData).to.have.property(\"customer_uploads\");",
+                  "  pm.expect(jsonData).to.have.property(\"created_at\");",
+                  "  pm.expect(jsonData).to.have.property(\"updated_at\");",
+                  "});",
+                  "",
+                  "pm.test(\"customer_uploads is an array with exactly 1 item\", function () {",
+                  "  pm.expect(jsonData.customer_uploads).to.be.an(\"array\");",
+                  "  pm.expect(jsonData.customer_uploads.length).to.eql(1);",
+                  "});",
+                  "",
+                  "pm.test(\"Single customer upload contains original_url and master_url\", function () {",
+                  "  const upload = jsonData.customer_uploads[0];",
+                  "  pm.expect(upload.original_url).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(upload.master_url).to.be.a(\"string\").and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 - Two customer uploads",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_two_uploads}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_two_uploads}}"
+              ]
+            },
+            "description": "Get customization with exactly two customer uploads."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test(\"UUID matches requested UUID\", function () {",
+                  "  pm.expect(jsonData.uuid).to.eql(pm.collectionVariables.get(\"uuid_two_uploads\"));",
+                  "});",
+                  "",
+                  "pm.test(\"customer_uploads has exactly 2 items\", function () {",
+                  "  pm.expect(jsonData.customer_uploads).to.be.an(\"array\");",
+                  "  pm.expect(jsonData.customer_uploads.length).to.eql(2);",
+                  "});",
+                  "",
+                  "pm.test(\"Each customer upload contains original_url and master_url\", function () {",
+                  "  jsonData.customer_uploads.forEach((upload, index) => {",
+                  "    pm.expect(upload.original_url, `original_url at index ${index}`).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(upload.master_url, `master_url at index ${index}`).to.be.a(\"string\").and.not.empty;",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 - No customer upload",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_no_upload}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_no_upload}}"
+              ]
+            },
+            "description": "Get customization with no customer upload."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test(\"UUID matches requested UUID\", function () {",
+                  "  pm.expect(jsonData.uuid).to.eql(pm.collectionVariables.get(\"uuid_no_upload\"));",
+                  "});",
+                  "",
+                  "pm.test(\"customer_uploads field exists\", function () {",
+                  "  pm.expect(jsonData).to.have.property(\"customer_uploads\");",
+                  "});",
+                  "",
+                  "pm.test(\"customer_uploads is an empty array\", function () {",
+                  "  pm.expect(jsonData.customer_uploads).to.be.an(\"array\");",
+                  "  pm.expect(jsonData.customer_uploads.length).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 - include_designs=true",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_one_upload}}?include_designs=true",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_one_upload}}"
+              ],
+              "query": [
+                {
+                  "key": "include_designs",
+                  "value": "true"
+                }
+              ]
+            },
+            "description": "Get customization and include designs data."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test(\"designs field exists when include_designs=true\", function () {",
+                  "  pm.expect(jsonData).to.have.property(\"designs\");",
+                  "  pm.expect(jsonData.designs).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "401 - Missing authentication",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_one_upload}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_one_upload}}"
+              ]
+            },
+            "description": "Get customization without Authorization header."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "401 - Invalid authentication",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{invalid_api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_one_upload}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_one_upload}}"
+              ]
+            },
+            "description": "Get customization with invalid bearer token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 401\", function () {",
+                  "  pm.response.to.have.status(401);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "200 - orders:read token can access customization",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{orders_read_api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_one_upload}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_one_upload}}"
+              ]
+            },
+            "description": "Get customization with a token that only has orders:read."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 200\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const jsonData = pm.response.json();",
+                  "",
+                  "pm.test(\"UUID matches requested UUID\", function () {",
+                  "  pm.expect(jsonData.uuid).to.eql(pm.collectionVariables.get(\"uuid_one_upload\"));",
+                  "});",
+                  "",
+                  "pm.test(\"customer_uploads field exists\", function () {",
+                  "  pm.expect(jsonData).to.have.property(\"customer_uploads\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "403 - Missing both abilities",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{forbidden_api_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_one_upload}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_one_upload}}"
+              ]
+            },
+            "description": "Get customization with authenticated token lacking both customizations:read and orders:read abilities."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 403\", function () {",
+                  "  pm.response.to.have.status(403);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "404 - Customization not found",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/{{uuid_not_found}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                "{{uuid_not_found}}"
+              ]
+            },
+            "description": "Get customization with a UUID that does not exist."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is 404\", function () {",
+                  "  pm.response.to.have.status(404);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

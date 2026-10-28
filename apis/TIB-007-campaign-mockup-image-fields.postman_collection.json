@@ -1,0 +1,1945 @@
+{
+  "info": {
+    "_postman_id": "tib-007-campaign-mockup-image-fields-0001",
+    "name": "TIB-007 — campaign_mockups: image fields read-only (staging)",
+    "description": "Bộ test API cho task **TIB-007 — campaign_mockups: cột ảnh chuyển sang read-only với role `user`** (project TIB trên Testlane).\n\nBản fix chuyển 4 cột `url` / `thumbnail` / `preview_url` / `preview_thumbnail` của bảng `campaign_mockups` thành **read-only** với role `user`: portal không còn gửi chúng khi add product/mockup, chỉ generation job (role admin) mới được ghi.\n\n## Bao phủ\n- **Tự động (folder 1–4):** TC-002 (một phần), TC-004, TC-005, TC-006, TC-007, TC-008, TC-014\n- **Manual trên portal (folder 5):** TC-001, TC-002 (phần nhìn), TC-003, TC-009, TC-010, TC-011, TC-012, TC-013\n\n## Cách chạy\n1. Điền `userA_email` / `userA_password` / `userB_email` / `userB_password` trong tab **Variables** (lấy từ `.env`: `TIB_USER_A_*`, `TIB_USER_B_*`). **Không commit mật khẩu vào file này.**\n2. Chỉnh `changeDeployedAt` cho khớp ngày bản fix lên staging.\n3. Chạy **0. Setup** → **1. Discovery** (tự lấy ID thật, không cần điền tay) → rồi các folder còn lại, hoặc Collection Runner toàn bộ theo thứ tự.\n4. Request thiếu biến phụ thuộc sẽ **tự skip** thay vì fail giả.\n\n## Auth\n- Collection-level = **No Auth**. Hai request trong `0. Setup` gọi `/api/login` không kèm token và lưu JWT vào `tokenA` / `tokenB`.\n- Request GraphQL dùng tab **Authorization > Bearer Token** với `{{tokenA}}` (owner) hoặc `{{tokenB}}` (attacker).\n- Token staging sống ~15 phút → thấy 401 thì chạy lại folder 0. Mọi request đều assert **không phải 401** để phân biệt \"hết hạn\" với \"bị chặn thật\".\n\n## Đọc kết quả folder 2\nCác request trong **2. Security** cố tình gửi mutation sai quyền. **Test pass = server đã chặn đúng.** Nếu một request ở đó trả 200 kèm data → đó là lỗ hổng, không phải test hỏng.\n\nKhông request nào tạo dữ liệu rác: mutation bị Hasura reject ở bước validate schema, chưa chạm DB.\n\n## Ghi chú\nĐã đối chiếu schema thật trên staging (2026-08-23): `campaign_mockups_insert_input` và `campaign_mockups_set_input` **không chứa** 4 cột ảnh, còn object type `campaign_mockups` **vẫn select được** — đúng như thiết kế của bản fix.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "noauth"
+  },
+  "item": [
+    {
+      "name": "0. Setup — lấy token A / B",
+      "description": "Chạy 2 request này trước tiên. Token staging hết hạn sau ~15 phút — thấy 401 ở folder sau thì chạy lại đây.",
+      "item": [
+        {
+          "name": "Setup — Login User A (owner) → tokenA",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userA_email}}\",\n  \"password\": \"{{userA_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{apiBase}}/api/login",
+              "host": [
+                "{{apiBase}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            },
+            "description": "Login REST, KHÔNG kèm token. Staging tắt captcha nên gọi thẳng được.\nNếu bị Turnstile chặn: login trên portal → DevTools > Application > localStorage > `teeinblue_token` → copy `[0].token` dán vào biến `tokenA`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login trả 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text()).to.eql(200);",
+                  "});",
+                  "",
+                  "var b = {}; try { b = pm.response.json(); } catch (e) {}",
+                  "var tok = b.token || b.access_token || (b.data && (b.data.token || b.data.access_token));",
+                  "",
+                  "pm.test('Lưu tokenA vào collection variable', function () {",
+                  "  pm.expect(tok, 'không tìm thấy token trong response').to.be.a('string').and.not.empty;",
+                  "  pm.collectionVariables.set('tokenA', tok);",
+                  "  console.log('tokenA đã lưu (' + tok.slice(0, 12) + '...)');",
+                  "});",
+                  "",
+                  "// Token staging sống ~15 phút. Chạy lại request này nếu các folder sau trả 401."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Setup — Login User B (attacker) → tokenB",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userB_email}}\",\n  \"password\": \"{{userB_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{apiBase}}/api/login",
+              "host": [
+                "{{apiBase}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ]
+            },
+            "description": "Login REST, KHÔNG kèm token. Staging tắt captcha nên gọi thẳng được.\nNếu bị Turnstile chặn: login trên portal → DevTools > Application > localStorage > `teeinblue_token` → copy `[0].token` dán vào biến `tokenB`."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login trả 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text()).to.eql(200);",
+                  "});",
+                  "",
+                  "var b = {}; try { b = pm.response.json(); } catch (e) {}",
+                  "var tok = b.token || b.access_token || (b.data && (b.data.token || b.data.access_token));",
+                  "",
+                  "pm.test('Lưu tokenB vào collection variable', function () {",
+                  "  pm.expect(tok, 'không tìm thấy token trong response').to.be.a('string').and.not.empty;",
+                  "  pm.collectionVariables.set('tokenB', tok);",
+                  "  console.log('tokenB đã lưu (' + tok.slice(0, 12) + '...)');",
+                  "});",
+                  "",
+                  "// Token staging sống ~15 phút. Chạy lại request này nếu các folder sau trả 401."
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Discovery & Schema contract",
+      "description": "Lấy ID thật để các folder sau dùng, và chốt hợp đồng schema: 4 cột ảnh **read-only** với role `user`.",
+      "item": [
+        {
+          "name": "Discovery — Lấy campaign_mockups mới nhất của User A",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query LatestCampaignMockupsA {\\n  campaign_mockups(order_by: {id: desc}, limit: 5) {\\n    id\\n    campaign_product_id\\n    mockup_id\\n    url\\n    thumbnail\\n    preview_url\\n    preview_thumbnail\\n    created_at\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Lưu `cmIdA`, `campaignProductIdA`, `mockupIdA`, `previewUrlA` cho các request sau. Nếu User A chưa có campaign_mockups nào → tạo 1 campaign + add product trên portal rồi chạy lại."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Query select trả 200 & không lỗi (cột ảnh vẫn READ được)', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "  pm.expect(ERRS.length, ERRTXT).to.eql(0);",
+                  "});",
+                  "",
+                  "var rows = (J.data && J.data.campaign_mockups) || [];",
+                  "pm.test('User A có ít nhất 1 campaign_mockup để test', function () {",
+                  "  pm.expect(rows.length, 'A chưa có campaign_mockup — tạo campaign + add product trên portal trước').to.be.above(0);",
+                  "});",
+                  "",
+                  "if (rows.length) {",
+                  "  var r = rows[0];",
+                  "  pm.collectionVariables.set('cmIdA', r.id);",
+                  "  pm.collectionVariables.set('campaignProductIdA', r.campaign_product_id);",
+                  "  pm.collectionVariables.set('mockupIdA', r.mockup_id);",
+                  "  pm.collectionVariables.set('previewUrlA', r.preview_url || '');",
+                  "  pm.collectionVariables.set('previewThumbA', r.preview_thumbnail || '');",
+                  "  console.log('A: cmId=' + r.id + ' campaign_product_id=' + r.campaign_product_id + ' preview_url=' + r.preview_url);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Discovery — Lấy campaign_mockups của User B (nguồn URL cho IDOR)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query LatestCampaignMockupsB {\\n  campaign_mockups(order_by: {id: desc}, limit: 3) {\\n    id\\n    campaign_product_id\\n    preview_url\\n    preview_thumbnail\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Token B chỉ thấy row của B (Hasura row-scope). Lấy `previewUrlB` làm payload chèn cho TC-006.\nNếu B chưa có row nào, TC-006 tự dùng URL giả `users/{{userIdB}}/forged.webp` — vẫn hợp lệ vì kỳ vọng là bị chặn ở tầng schema."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Query của B trả 200', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "  pm.expect(ERRS.length, ERRTXT).to.eql(0);",
+                  "});",
+                  "",
+                  "var rows = (J.data && J.data.campaign_mockups) || [];",
+                  "var urlB = rows.length && rows[0].preview_url ? rows[0].preview_url",
+                  "                                             : 'users/' + pm.collectionVariables.get('userIdB') + '/forged-by-qa.webp';",
+                  "pm.collectionVariables.set('previewUrlB', urlB);",
+                  "if (rows.length) { pm.collectionVariables.set('cmIdB', rows[0].id); }",
+                  "console.log('payload IDOR sẽ dùng: ' + urlB);",
+                  "",
+                  "pm.test('[Row-scope] B KHÔNG thấy row của A', function () {",
+                  "  var cmIdA = Number(pm.collectionVariables.get('cmIdA'));",
+                  "  var ids = rows.map(function (r) { return Number(r.id); });",
+                  "  pm.expect(ids, 'B đọc được row của A — rò rỉ row-level permission').to.not.include(cmIdA);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contract — insert_input KHÔNG chứa 4 cột ảnh",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query IntrospectInsertInput {\\n  __type(name: \\\"campaign_mockups_insert_input\\\") { name inputFields { name } }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Kiểm tra ở tầng schema: role `user` không có insert permission trên url/thumbnail/preview_url/preview_thumbnail. Đây là bằng chứng gốc cho TC-004/006 — mutation bị chặn ngay khi validate, chưa chạm DB."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var t = (J.data && J.data.__type) || {};",
+                  "var names = (t.inputFields || t.fields || []).map(function (f) { return f.name; });",
+                  "var IMG = [\"url\", \"thumbnail\", \"preview_url\", \"preview_thumbnail\"];",
+                  "",
+                  "pm.test('Introspect được type ' + (t.name || '?'), function () {",
+                  "  pm.expect(names.length, 'không introspect được — Hasura có thể tắt introspection cho role user').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('4 cột ảnh KHÔNG writable trong campaign_mockups_insert_input', function () {",
+                  "  var present = IMG.filter(function (f) { return names.indexOf(f) > -1; });",
+                  "  pm.expect(present, 'cột ảnh vẫn writable bởi role user — permission CHƯA được siết').to.eql([]);",
+                  "});",
+                  "",
+                  "console.log('campaign_mockups_insert_input: ' + names.join(', '));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contract — set_input KHÔNG chứa 4 cột ảnh",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query IntrospectSetInput {\\n  __type(name: \\\"campaign_mockups_set_input\\\") { name inputFields { name } }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Tương tự cho update. Bằng chứng gốc cho TC-005."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var t = (J.data && J.data.__type) || {};",
+                  "var names = (t.inputFields || t.fields || []).map(function (f) { return f.name; });",
+                  "var IMG = [\"url\", \"thumbnail\", \"preview_url\", \"preview_thumbnail\"];",
+                  "",
+                  "pm.test('Introspect được type ' + (t.name || '?'), function () {",
+                  "  pm.expect(names.length, 'không introspect được — Hasura có thể tắt introspection cho role user').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('4 cột ảnh KHÔNG writable trong campaign_mockups_set_input', function () {",
+                  "  var present = IMG.filter(function (f) { return names.indexOf(f) > -1; });",
+                  "  pm.expect(present, 'cột ảnh vẫn writable bởi role user — permission CHƯA được siết').to.eql([]);",
+                  "});",
+                  "",
+                  "console.log('campaign_mockups_set_input: ' + names.join(', '));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Contract — object type VẪN select được 4 cột ảnh",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query IntrospectObjectType {\\n  __type(name: \\\"campaign_mockups\\\") { name fields { name } }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Siết write KHÔNG được làm mất quyền read — nếu 4 cột này biến mất khỏi object type thì portal sẽ trắng ảnh (TC-008)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var t = (J.data && J.data.__type) || {};",
+                  "var names = (t.inputFields || t.fields || []).map(function (f) { return f.name; });",
+                  "var IMG = [\"url\", \"thumbnail\", \"preview_url\", \"preview_thumbnail\"];",
+                  "",
+                  "pm.test('Introspect được type ' + (t.name || '?'), function () {",
+                  "  pm.expect(names.length, 'không introspect được — Hasura có thể tắt introspection cho role user').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('4 cột ảnh READ được trong campaign_mockups', function () {",
+                  "  var present = IMG.filter(function (f) { return names.indexOf(f) > -1; });",
+                  "  pm.expect(present, 'kỳ vọng cả 4 cột ảnh có mặt').to.have.members(IMG);",
+                  "});",
+                  "",
+                  "console.log('campaign_mockups: ' + names.join(', '));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Security — cột ảnh read-only với role user (TC-004 → TC-006)",
+      "description": "Phần lõi của TIB-007. Mọi request ở đây **kỳ vọng FAIL phía server**: pass nghĩa là Hasura đã chặn đúng.\n\nKhông request nào tạo dữ liệu rác vì tất cả bị reject ở bước validate schema.",
+      "item": [
+        {
+          "name": "TC-TIB-004a — [Security] Insert kèm cả 4 cột ảnh → bị từ chối",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation InsertWithImageFields {\\n  insert_campaign_mockups_one(object: {\\n    campaign_product_id: {{campaignProductIdA}},\\n    mockup_id: {{mockupIdA}},\\n    url: \\\"users/{{userIdA}}/qa-injected.webp\\\",\\n    thumbnail: \\\"users/{{userIdA}}/qa-injected_thumbnail.webp\\\",\\n    preview_url: \\\"users/{{userIdA}}/qa-injected.webp\\\",\\n    preview_thumbnail: \\\"users/{{userIdA}}/qa-injected_thumbnail.webp\\\"\\n  }) { id url thumbnail preview_url preview_thumbnail }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "TC-TIB-139. Gửi insert `campaign_mockups` có set url/thumbnail/preview_url/preview_thumbnail bằng token role `user`.\n\n**Kỳ vọng:** Hasura reject (validation/schema error), KHÔNG âm thầm nhận, KHÔNG ghi row nào.\n**An toàn:** request bị chặn ở bước validate nên không tạo dữ liệu rác."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"campaignProductIdA\", \"mockupIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Hasura TỪ CHỐI mutation (có errors)', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text()).to.be.oneOf([200, 400]);",
+                  "  pm.expect(ERRS.length, 'mutation KHÔNG bị chặn — đây là lỗ hổng: user role ghi được cột ảnh').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Lý do từ chối đúng: cột ảnh không tồn tại trong input type / không có quyền', function () {",
+                  "  pm.expect(ERRTXT).to.match(/not found in type|unexpected|no such|not allowed|permission|validation|field .* not/i);",
+                  "});",
+                  "",
+                  "pm.test('Error nhắc đúng tên cột bị chặn (url, thumbnail, preview_url, preview_thumbnail)', function () {",
+                  "  var hit = [\"url\", \"thumbnail\", \"preview_url\", \"preview_thumbnail\"].filter(function (f) { return ERRTXT.indexOf(f) > -1; });",
+                  "  pm.expect(hit.length, 'error không nhắc cột ảnh nào — kiểm tra lại nguyên nhân reject: ' + ERRTXT).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Không có row nào được ghi (data rỗng)', function () {",
+                  "  var d = J.data || {};",
+                  "  Object.keys(d).forEach(function (k) {",
+                  "    pm.expect(d[k], 'mutation ' + k + ' đã ghi được dữ liệu!').to.be.oneOf([null, undefined]);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-004b — [Security] Insert chỉ 1 cột preview_url → vẫn bị từ chối",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation InsertWithPreviewUrlOnly {\\n  insert_campaign_mockups_one(object: {\\n    campaign_product_id: {{campaignProductIdA}},\\n    mockup_id: {{mockupIdA}},\\n    preview_url: \\\"users/{{userIdA}}/qa-injected-single.webp\\\"\\n  }) { id preview_url }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Biến thể của TC-004: chặn phải áp cho **từng cột**, không chỉ khi gửi đủ 4. Nếu request này 200 → permission mới chỉ chặn một phần."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"campaignProductIdA\", \"mockupIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Hasura TỪ CHỐI mutation (có errors)', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text()).to.be.oneOf([200, 400]);",
+                  "  pm.expect(ERRS.length, 'mutation KHÔNG bị chặn — đây là lỗ hổng: user role ghi được cột ảnh').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Lý do từ chối đúng: cột ảnh không tồn tại trong input type / không có quyền', function () {",
+                  "  pm.expect(ERRTXT).to.match(/not found in type|unexpected|no such|not allowed|permission|validation|field .* not/i);",
+                  "});",
+                  "",
+                  "pm.test('Error nhắc đúng tên cột bị chặn (preview_url)', function () {",
+                  "  var hit = [\"preview_url\"].filter(function (f) { return ERRTXT.indexOf(f) > -1; });",
+                  "  pm.expect(hit.length, 'error không nhắc cột ảnh nào — kiểm tra lại nguyên nhân reject: ' + ERRTXT).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Không có row nào được ghi (data rỗng)', function () {",
+                  "  var d = J.data || {};",
+                  "  Object.keys(d).forEach(function (k) {",
+                  "    pm.expect(d[k], 'mutation ' + k + ' đã ghi được dữ liệu!').to.be.oneOf([null, undefined]);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-005a — [Security] Update 4 cột ảnh trên row của chính mình → bị từ chối",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation UpdateImageFieldsOwnRow {\\n  update_campaign_mockups_by_pk(\\n    pk_columns: {id: {{cmIdA}}},\\n    _set: {\\n      url: \\\"users/{{userIdA}}/qa-overwritten.webp\\\",\\n      thumbnail: \\\"users/{{userIdA}}/qa-overwritten_thumbnail.webp\\\",\\n      preview_url: \\\"users/{{userIdA}}/qa-overwritten.webp\\\",\\n      preview_thumbnail: \\\"users/{{userIdA}}/qa-overwritten_thumbnail.webp\\\"\\n    }\\n  ) { id url thumbnail preview_url preview_thumbnail }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "TC-TIB-140. Owner cũng KHÔNG được tự ghi đè ảnh — chỉ generation job (role admin) mới được set."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cmIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Hasura TỪ CHỐI mutation (có errors)', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text()).to.be.oneOf([200, 400]);",
+                  "  pm.expect(ERRS.length, 'mutation KHÔNG bị chặn — đây là lỗ hổng: user role ghi được cột ảnh').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Lý do từ chối đúng: cột ảnh không tồn tại trong input type / không có quyền', function () {",
+                  "  pm.expect(ERRTXT).to.match(/not found in type|unexpected|no such|not allowed|permission|validation|field .* not/i);",
+                  "});",
+                  "",
+                  "pm.test('Error nhắc đúng tên cột bị chặn (url, thumbnail, preview_url, preview_thumbnail)', function () {",
+                  "  var hit = [\"url\", \"thumbnail\", \"preview_url\", \"preview_thumbnail\"].filter(function (f) { return ERRTXT.indexOf(f) > -1; });",
+                  "  pm.expect(hit.length, 'error không nhắc cột ảnh nào — kiểm tra lại nguyên nhân reject: ' + ERRTXT).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Không có row nào được ghi (data rỗng)', function () {",
+                  "  var d = J.data || {};",
+                  "  Object.keys(d).forEach(function (k) {",
+                  "    pm.expect(d[k], 'mutation ' + k + ' đã ghi được dữ liệu!').to.be.oneOf([null, undefined]);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-005b — [Security] Update 1 cột preview_thumbnail (dạng where) → vẫn bị từ chối",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation UpdatePreviewThumbnailOnly {\\n  update_campaign_mockups(\\n    where: {id: {_eq: {{cmIdA}}}},\\n    _set: {preview_thumbnail: \\\"users/{{userIdA}}/qa-overwritten_thumbnail.webp\\\"}\\n  ) { affected_rows returning { id preview_thumbnail } }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Biến thể: dùng `update_campaign_mockups` (where) thay vì `_by_pk` để chắc chắn không có đường vòng nào lọt."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cmIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Hasura TỪ CHỐI mutation (có errors)', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text()).to.be.oneOf([200, 400]);",
+                  "  pm.expect(ERRS.length, 'mutation KHÔNG bị chặn — đây là lỗ hổng: user role ghi được cột ảnh').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Lý do từ chối đúng: cột ảnh không tồn tại trong input type / không có quyền', function () {",
+                  "  pm.expect(ERRTXT).to.match(/not found in type|unexpected|no such|not allowed|permission|validation|field .* not/i);",
+                  "});",
+                  "",
+                  "pm.test('Error nhắc đúng tên cột bị chặn (preview_thumbnail)', function () {",
+                  "  var hit = [\"preview_thumbnail\"].filter(function (f) { return ERRTXT.indexOf(f) > -1; });",
+                  "  pm.expect(hit.length, 'error không nhắc cột ảnh nào — kiểm tra lại nguyên nhân reject: ' + ERRTXT).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Không có row nào được ghi (data rỗng)', function () {",
+                  "  var d = J.data || {};",
+                  "  Object.keys(d).forEach(function (k) {",
+                  "    pm.expect(d[k], 'mutation ' + k + ' đã ghi được dữ liệu!').to.be.oneOf([null, undefined]);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-005c — [Verify] Row của A còn nguyên sau các mutation bị chặn",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query VerifyRowUnchanged {\\n  campaign_mockups_by_pk(id: {{cmIdA}}) {\\n    id\\n    url\\n    thumbnail\\n    preview_url\\n    preview_thumbnail\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Chốt phần 'existing image values not overwritten by user' của TC-005: so preview_url hiện tại với giá trị đã chụp ở Discovery, và khẳng định không có chuỗi `qa-overwritten` nào lọt vào DB."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cmIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var r = (J.data && J.data.campaign_mockups_by_pk) || {};",
+                  "var before = pm.collectionVariables.get('previewUrlA') || '';",
+                  "",
+                  "pm.test('Đọc lại row thành công', function () {",
+                  "  pm.expect(ERRS.length, ERRTXT).to.eql(0);",
+                  "  pm.expect(r.id, 'không đọc lại được row').to.not.be.undefined;",
+                  "});",
+                  "",
+                  "pm.test('preview_url KHÔNG đổi so với trước khi tấn công', function () {",
+                  "  pm.expect(String(r.preview_url || ''), 'giá trị ảnh đã bị user ghi đè!').to.eql(before);",
+                  "});",
+                  "",
+                  "pm.test('Không có payload QA nào lọt vào row', function () {",
+                  "  var blob = JSON.stringify(r);",
+                  "  pm.expect(blob).to.not.match(/qa-overwritten|qa-injected|forged-by-qa/i);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-006a — [Security/IDOR] A chèn URL ảnh của B vào row của mình → bị từ chối",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation IdorInsertForeignUrl {\\n  insert_campaign_mockups_one(object: {\\n    campaign_product_id: {{campaignProductIdA}},\\n    mockup_id: {{mockupIdA}},\\n    url: \\\"{{previewUrlB}}\\\",\\n    preview_url: \\\"{{previewUrlB}}\\\"\\n  }) { id url preview_url }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "TC-TIB-141. Vì cột ảnh không writable với role `user`, cross-user URL injection bất khả thi ngay từ schema. Đây là lý do bản fix đóng luôn cả lớp lỗ hổng chứ không chỉ 1 endpoint."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"campaignProductIdA\", \"mockupIdA\", \"previewUrlB\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Hasura TỪ CHỐI mutation (có errors)', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text()).to.be.oneOf([200, 400]);",
+                  "  pm.expect(ERRS.length, 'mutation KHÔNG bị chặn — đây là lỗ hổng: user role ghi được cột ảnh').to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Lý do từ chối đúng: cột ảnh không tồn tại trong input type / không có quyền', function () {",
+                  "  pm.expect(ERRTXT).to.match(/not found in type|unexpected|no such|not allowed|permission|validation|field .* not/i);",
+                  "});",
+                  "",
+                  "pm.test('Error nhắc đúng tên cột bị chặn (url, preview_url)', function () {",
+                  "  var hit = [\"url\", \"preview_url\"].filter(function (f) { return ERRTXT.indexOf(f) > -1; });",
+                  "  pm.expect(hit.length, 'error không nhắc cột ảnh nào — kiểm tra lại nguyên nhân reject: ' + ERRTXT).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Không có row nào được ghi (data rỗng)', function () {",
+                  "  var d = J.data || {};",
+                  "  Object.keys(d).forEach(function (k) {",
+                  "    pm.expect(d[k], 'mutation ' + k + ' đã ghi được dữ liệu!').to.be.oneOf([null, undefined]);",
+                  "  });",
+                  "});",
+                  "",
+                  "pm.test('URL của B không xuất hiện trong data trả về', function () {",
+                  "  var urlB = pm.collectionVariables.get('previewUrlB');",
+                  "  pm.expect(JSON.stringify(J.data || {})).to.not.include(urlB);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-006b — [Security/IDOR] B ghi đè ảnh trên row của A → bị từ chối",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenB}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"mutation IdorUpdateVictimRow {\\n  update_campaign_mockups_by_pk(\\n    pk_columns: {id: {{cmIdA}}},\\n    _set: {preview_url: \\\"users/{{userIdB}}/attacker-controlled.webp\\\"}\\n  ) { id preview_url }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Hai lớp chặn cùng lúc: (1) cột ảnh không nằm trong `set_input`, (2) row-level permission không cho B chạm row của A.\nChỉ cần 1 trong 2 lớp hoạt động là request phải fail — script chấp nhận cả hai dạng."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cmIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Mutation của attacker KHÔNG thành công', function () {",
+                  "  var d = (J.data && J.data.update_campaign_mockups_by_pk);",
+                  "  var blocked = ERRS.length > 0 || d === null || d === undefined;",
+                  "  pm.expect(blocked, 'B ghi được vào row của A — IDOR THẬT: ' + pm.response.text()).to.be.true;",
+                  "});",
+                  "",
+                  "pm.test('Bị chặn ở tầng schema (cột ảnh) hoặc tầng row-permission', function () {",
+                  "  if (ERRS.length) {",
+                  "    pm.expect(ERRTXT).to.match(/preview_url|not found in type|permission|not allowed|validation/i);",
+                  "  } else {",
+                  "    // Hasura trả data null khi where/pk không khớp row nào mà B được phép thấy",
+                  "    pm.expect(J.data.update_campaign_mockups_by_pk).to.be.null;",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-006c — [Verify] Row của A vẫn sạch sau đòn IDOR",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query VerifyRowUnchanged {\\n  campaign_mockups_by_pk(id: {{cmIdA}}) {\\n    id\\n    url\\n    thumbnail\\n    preview_url\\n    preview_thumbnail\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Đọc lại bằng token A (B không đọc được row này) để chắc chắn không có ghi âm thầm."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cmIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var r = (J.data && J.data.campaign_mockups_by_pk) || {};",
+                  "pm.test('preview_url vẫn là giá trị gốc của A', function () {",
+                  "  pm.expect(String(r.preview_url || '')).to.eql(pm.collectionVariables.get('previewUrlA') || '');",
+                  "});",
+                  "pm.test('Không chứa đường dẫn của user B', function () {",
+                  "  pm.expect(JSON.stringify(r)).to.not.include('users/' + pm.collectionVariables.get('userIdB') + '/');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Data & generation (TC-002, TC-007)",
+      "description": "Xác nhận hình dạng dữ liệu sau khi siết permission và vòng đời preview do job sinh ra.",
+      "item": [
+        {
+          "name": "TC-TIB-007 — [Data] Row mới: url/thumbnail null, preview_* do job điền",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query NewRowsImageShape {\\n  campaign_mockups(order_by: {id: desc}, limit: 10) {\\n    id\\n    campaign_product_id\\n    url\\n    thumbnail\\n    preview_url\\n    preview_thumbnail\\n    created_at\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "TC-TIB-142. Kiểm hình dạng dữ liệu của các row mới nhất:\n- `url`, `thumbnail` = **null** (by design, portal không còn gửi)\n- `preview_url`, `preview_thumbnail` = do generation job (role admin) điền\n\nChỉ xét row tạo sau mốc `changeDeployedAt` — sửa biến này cho khớp ngày deploy trên staging."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var rows = (J.data && J.data.campaign_mockups) || [];",
+                  "var cutoff = new Date(pm.collectionVariables.get('changeDeployedAt'));",
+                  "var fresh = rows.filter(function (r) { return new Date(r.created_at) >= cutoff; });",
+                  "",
+                  "pm.test('Có row tạo sau ngày deploy để kiểm tra', function () {",
+                  "  pm.expect(fresh.length, 'không có row mới sau ' + cutoff.toISOString() +",
+                  "    ' — add product vào campaign trên portal rồi chạy lại, hoặc chỉnh biến changeDeployedAt').to.be.above(0);",
+                  "});",
+                  "",
+                  "fresh.forEach(function (r) {",
+                  "  pm.test('Row ' + r.id + ': url & thumbnail null (by design)', function () {",
+                  "    pm.expect(r.url, 'url không null — portal vẫn đang gửi cột này?').to.be.null;",
+                  "    pm.expect(r.thumbnail, 'thumbnail không null').to.be.null;",
+                  "  });",
+                  "});",
+                  "",
+                  "var done = fresh.filter(function (r) { return r.preview_url; });",
+                  "pm.test('Generation job đã điền preview_url cho ít nhất 1 row mới', function () {",
+                  "  pm.expect(done.length, 'toàn bộ preview_url còn null — job generate chưa chạy/đã fail (xem TC-011)').to.be.above(0);",
+                  "});",
+                  "",
+                  "done.forEach(function (r) {",
+                  "  pm.test('Row ' + r.id + ': preview_url + preview_thumbnail hợp lệ, đúng scope user', function () {",
+                  "    pm.expect(r.preview_thumbnail, 'có preview_url nhưng thiếu preview_thumbnail').to.be.a('string').and.not.empty;",
+                  "    pm.expect(r.preview_url).to.include('users/' + pm.collectionVariables.get('userIdA') + '/');",
+                  "    pm.expect(r.preview_url).to.match(/\\.(webp|png|jpe?g)$/i);",
+                  "  });",
+                  "});",
+                  "",
+                  "var pending = fresh.filter(function (r) { return !r.preview_url; });",
+                  "if (pending.length) {",
+                  "  console.log('Row đang chờ generate (chạy lại sau vài giây — TC-002): ' + pending.map(function (r) { return r.id; }).join(', '));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-002 — [Happy] Poll tới khi generation job điền preview (tối đa {{pollMaxAttempts}} lần)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query PollPreviewGenerated {\\n  campaign_mockups_by_pk(id: {{cmIdA}}) {\\n    id\\n    preview_url\\n    preview_thumbnail\\n    updated_at\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "TC-TIB-137 phần API. Sau khi add product/mockup trên portal, chạy request này trong **Collection Runner**: script tự `setNextRequest` về chính nó tới khi `preview_url` khác null hoặc hết `pollMaxAttempts`.\n\nPhần 'preview hiển thị đúng ảnh' vẫn phải xem bằng mắt trên portal."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cmIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var r = (J.data && J.data.campaign_mockups_by_pk) || {};",
+                  "var attempt = Number(pm.collectionVariables.get('pollAttempt') || 0) + 1;",
+                  "var max = Number(pm.collectionVariables.get('pollMaxAttempts') || 10);",
+                  "pm.collectionVariables.set('pollAttempt', attempt);",
+                  "",
+                  "if (!r.preview_url && attempt < max) {",
+                  "  console.log('Lần ' + attempt + '/' + max + ': preview_url còn null, thử lại...');",
+                  "  pm.execution.setNextRequest(pm.info.requestName);",
+                  "} else {",
+                  "  pm.collectionVariables.set('pollAttempt', 0);",
+                  "  pm.test('preview_url được điền trong ' + max + ' lần poll', function () {",
+                  "    pm.expect(r.preview_url, 'hết ' + max + ' lần poll mà preview vẫn null — job generate chậm/fail (TC-011)')",
+                  "      .to.be.a('string').and.not.empty;",
+                  "  });",
+                  "  pm.test('preview_thumbnail đi kèm', function () {",
+                  "    pm.expect(r.preview_thumbnail).to.be.a('string').and.not.empty;",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-002b — [Optional] Ảnh preview tải được thật (cần cdnBase)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{cdnBase}}/{{previewUrlA}}",
+              "host": [
+                "{{cdnBase}}"
+              ],
+              "path": [
+                "{{previewUrlA}}"
+              ]
+            },
+            "description": "`preview_url` là đường dẫn tương đối trong bucket. Điền `cdnBase` (lấy từ DevTools > Network khi portal load ảnh mockup trên staging) để kiểm tra ảnh thực sự tồn tại, không phải URL chết.\nBỏ trống `cdnBase` → request tự skip."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cdnBase\", \"previewUrlA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (điền cdnBase hoặc chạy folder 1)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Ảnh preview tải được (200)', function () {",
+                  "  pm.expect(pm.response.code, 'URL chết — cdnBase sai hoặc file chưa upload').to.eql(200);",
+                  "});",
+                  "pm.test('Content-Type là ảnh', function () {",
+                  "  pm.expect(String(pm.response.headers.get('Content-Type') || '')).to.match(/^image\\//);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Regression đọc dữ liệu (TC-008, TC-014)",
+      "description": "Siết quyền GHI không được làm hỏng quyền ĐỌC hay dữ liệu cũ.",
+      "item": [
+        {
+          "name": "TC-TIB-008 — [Regression] Campaign cũ (trước fix) vẫn còn ảnh",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query OldRowsStillHaveImages {\\n  campaign_mockups(order_by: {id: asc}, limit: 20) {\\n    id\\n    url\\n    thumbnail\\n    preview_url\\n    preview_thumbnail\\n    created_at\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "TC-TIB-143. Siết quyền GHI không được ảnh hưởng dữ liệu/quyền ĐỌC. Lấy các row cũ nhất của A và khẳng định mỗi row vẫn có ít nhất 1 nguồn ảnh (url cũ hoặc preview mới)."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var rows = (J.data && J.data.campaign_mockups) || [];",
+                  "var cutoff = new Date(pm.collectionVariables.get('changeDeployedAt'));",
+                  "var old = rows.filter(function (r) { return new Date(r.created_at) < cutoff; });",
+                  "",
+                  "pm.test('Select 4 cột ảnh vẫn chạy, không lỗi permission', function () {",
+                  "  pm.expect(ERRS.length, ERRTXT).to.eql(0);",
+                  "  pm.expect(rows.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Có row cũ (trước ' + cutoff.toISOString().slice(0, 10) + ') để regress', function () {",
+                  "  pm.expect(old.length, 'không có row cũ — bỏ qua kiểm tra này hoặc chỉnh changeDeployedAt').to.be.above(0);",
+                  "});",
+                  "",
+                  "old.forEach(function (r) {",
+                  "  pm.test('Row cũ ' + r.id + ' vẫn có nguồn ảnh', function () {",
+                  "    var has = !!(r.url || r.thumbnail || r.preview_url || r.preview_thumbnail);",
+                  "    pm.expect(has, 'row cũ mất sạch ảnh — REGRESSION, campaign cũ sẽ trắng ảnh trên portal').to.be.true;",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-008b — [Regression] Query listing lồng campaign → product → mockup không lỗi permission",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query CampaignListingWithMockups {\\n  campaigns(order_by: {id: desc}, limit: 5) {\\n    id\\n    name\\n    campaign_products {\\n      id\\n      campaign_mockups(order_by: {position: asc}) {\\n        id\\n        position\\n        master\\n        url\\n        thumbnail\\n        preview_url\\n        preview_thumbnail\\n      }\\n    }\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "Mô phỏng đúng query mà trang Campaign listing/detail của portal chạy. Nếu permission bị siết quá tay (chặn cả select), request này sẽ lỗi và cả trang campaign sẽ hỏng."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Query lồng nhiều tầng trả 200, không lỗi', function () {",
+                  "  pm.expect(pm.response.code).to.eql(200);",
+                  "  pm.expect(ERRS.length, ERRTXT).to.eql(0);",
+                  "});",
+                  "",
+                  "var cps = ((J.data && J.data.campaigns) || []).reduce(function (a, c) {",
+                  "  return a.concat(c.campaign_products || []);",
+                  "}, []);",
+                  "var ms = cps.reduce(function (a, p) { return a.concat(p.campaign_mockups || []); }, []);",
+                  "",
+                  "pm.test('Đọc được mockup lồng trong campaign', function () {",
+                  "  pm.expect(ms.length, 'không campaign nào có mockup — chọn campaign khác để regress').to.be.above(0);",
+                  "});",
+                  "",
+                  "var blank = ms.filter(function (m) { return !m.url && !m.thumbnail && !m.preview_url && !m.preview_thumbnail; });",
+                  "pm.test('Không mockup nào trắng cả 4 cột ảnh', function () {",
+                  "  pm.expect(blank.map(function (m) { return m.id; }),",
+                  "    'các mockup này sẽ hiển thị trắng trên portal (chờ generate hoặc job fail — TC-010/011)').to.eql([]);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "TC-TIB-014 — [Regression] Dữ liệu nguồn cho export/print còn đủ khi url null",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenA}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"query PrintFileSourceFields {\\n  campaign_mockups(where: {id: {_eq: {{cmIdA}}}}) {\\n    id\\n    master\\n    layers\\n    width\\n    height\\n    url\\n    preview_url\\n    campaign_mockup_printareas { id }\\n  }\\n}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{gqlUrl}}",
+              "host": [
+                "{{gqlUrl}}"
+              ]
+            },
+            "description": "TC-TIB-149 phần API. Flow export/print phải đọc `preview_url`, không phụ thuộc `url`. Request này chỉ khẳng định **dữ liệu nguồn còn đủ** (layers/printareas/preview_url); còn file export ra có đúng hay không thì phải chạy export thật trên portal.\n\n⚠️ Q4 cần DEV chốt: có flow nào vẫn đọc thẳng `url`/`thumbnail` không."
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var need = [\"cmIdA\"];",
+                  "var missing = need.filter(function (k) {",
+                  "  var v = pm.collectionVariables.get(k);",
+                  "  return !v || String(v).indexOf('FILL_') === 0;",
+                  "});",
+                  "if (missing.length) {",
+                  "  console.log('SKIP — thiếu biến: ' + missing.join(', ') + ' (chạy folder 1 trước)');",
+                  "  if (pm.execution && pm.execution.skipRequest) { pm.execution.skipRequest(); }",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ---- helper dùng chung cho mọi request GraphQL ----",
+                  "var J = {}; try { J = pm.response.json(); } catch (e) { J = {}; }",
+                  "var ERRS = J.errors || [];",
+                  "var ERRTXT = JSON.stringify(ERRS);",
+                  "",
+                  "pm.test('Không phải 401 (token còn sống)', function () {",
+                  "  pm.expect(pm.response.code, 'token hết hạn hoặc chưa set — chạy lại folder 0. Setup').to.not.eql(401);",
+                  "});",
+                  "",
+                  "var r = ((J.data && J.data.campaign_mockups) || [])[0] || {};",
+                  "pm.test('Đọc được dữ liệu nguồn', function () {",
+                  "  pm.expect(ERRS.length, ERRTXT).to.eql(0);",
+                  "  pm.expect(r.id).to.not.be.undefined;",
+                  "});",
+                  "pm.test('Có preview_url để export dùng thay cho url', function () {",
+                  "  pm.expect(r.preview_url, 'preview_url null → export sẽ không có ảnh nguồn').to.be.a('string').and.not.empty;",
+                  "});",
+                  "pm.test('layers & kích thước còn nguyên', function () {",
+                  "  pm.expect(r.layers, 'mất layers thì render print-file sẽ hỏng').to.not.be.null;",
+                  "  pm.expect(Number(r.width)).to.be.above(0);",
+                  "  pm.expect(Number(r.height)).to.be.above(0);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Manual trên portal — không chạy được bằng API",
+      "description": "Các test case còn lại của TIB-007 phụ thuộc UI/hạ tầng, không assert được bằng request đơn lẻ. Chạy tay trên portal staging, kết quả cập nhật thẳng vào Testlane.\n\n| TC | Nội dung | Vì sao manual | Neo API để đối chiếu |\n|----|----------|---------------|----------------------|\n| **TC-001** (TC-TIB-136) | Add product có mockup vào campaign → save không lỗi GraphQL | Đi qua CampaignEditor, payload do portal dựng | Sau khi save, chạy `Discovery — User A` → phải có row mới |\n| **TC-002** (TC-TIB-137) | Preview render đúng ảnh sau khi job xong | Phải nhìn bằng mắt | Folder 3 đã poll preview_url + tải ảnh |\n| **TC-003** (TC-TIB-138) | Add mockup từ library vào nhiều campaign | Flow MockupAddToCampaigns | Query campaign_mockups theo từng campaign_product_id đích |\n| **TC-009** (TC-TIB-144) | Duplicate/clone campaign + bulk assign không lỗi permission | Hành động ở portal/REST | ⚠️ Q3: DEV chốt các chỗ ghi khác còn gửi 4 cột ảnh không |\n| **TC-010** (TC-TIB-145) | Loading state khi chưa generate xong | Thuần UX | TC-007 chỉ ra row có preview_url = null trong lúc chờ |\n| **TC-011** (TC-TIB-146) | Job fail/chậm → preview vẫn null, không crash | Cần ép job fail | TC-002 hết poll mà vẫn null = đúng tình huống này |\n| **TC-012** (TC-TIB-147) | Xoá mockup nguồn → sync Shopify không dính URL chết | Cần store Shopify kết nối | TC-014 xác nhận preview_url độc lập với mockup nguồn |\n| **TC-013** (TC-TIB-148) | Deploy api trước portal làm hỏng flow add | Cần env lệch phiên bản | Folder 2 chính là chứng minh: portal cũ gửi 4 cột ảnh sẽ bị reject y hệt |\n",
+      "item": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "apiBase",
+      "value": "https://staging-api.teeinblue.com",
+      "type": "string"
+    },
+    {
+      "key": "gqlUrl",
+      "value": "https://staging-graphql.teeinblue.com/v1/graphql",
+      "type": "string"
+    },
+    {
+      "key": "userA_email",
+      "value": "FILL_userA_email",
+      "type": "string"
+    },
+    {
+      "key": "userA_password",
+      "value": "FILL_userA_password",
+      "type": "string"
+    },
+    {
+      "key": "userB_email",
+      "value": "FILL_userB_email",
+      "type": "string"
+    },
+    {
+      "key": "userB_password",
+      "value": "FILL_userB_password",
+      "type": "string"
+    },
+    {
+      "key": "tokenA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tokenB",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userIdA",
+      "value": "64",
+      "type": "string"
+    },
+    {
+      "key": "userIdB",
+      "value": "94",
+      "type": "string"
+    },
+    {
+      "key": "changeDeployedAt",
+      "value": "2026-08-01T00:00:00",
+      "type": "string"
+    },
+    {
+      "key": "pollMaxAttempts",
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "pollAttempt",
+      "value": "0",
+      "type": "string"
+    },
+    {
+      "key": "cdnBase",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cmIdA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "campaignProductIdA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "mockupIdA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previewUrlA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previewThumbA",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cmIdB",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "previewUrlB",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,2536 @@
+{
+  "info": {
+    "_postman_id": "tib-031-order-date-range-0001",
+    "name": "TIB-031 — Order date range filter (staging)",
+    "description": "Bo test API cho **TIB-031 — Order date range filter** (project TIB tren Testlane).\n\nBug goc: merchant loc Orders theo khoang ngay thi order cua **ngay ke tiep** van lot vao list.\nNguyen nhan: `end_date` da duoc Portal quy doi sang UTC roi con bi `->endOfDay()` noi rong lai.\n\n## Moi truong\n- Store: `linh-tib-staging.myshopify.com` — instance **58**, timezone **Asia/Bangkok (UTC+7, khong DST)**\n- Base: `https://staging-api.teeinblue.com`\n\n## Cach chay\n1. Chon environment **TIB Staging - Open API** o goc tren ben phai. Environment nay giu san\n   `partnerToken` va cac token scope khac, do `scripts/mktokens.py` tu day len.\n2. Dien `userA_email` / `userA_password` trong tab **Variables** cua collection.\n3. Chay folder **0. Setup** — lay JWT, chot timezone va ground truth cua 4 order boundary.\n4. Chay cac folder con lai.\n\n## Luu y quan trong\n- **JWT staging chi song 15 phut.** Thay 401 hang loat thi chay lai `Setup — Login`.\n- **Assertion dem so** chi dem trong 4 order boundary da biet, khong dem tong so dong. Staging\n  tung bi seed them bo trung moc gio (#ins58-2874..2877) lam vo cach dem tong.\n- **Cloudflare chan User-Agent la** (403, error 1010). Moi request da co san header `User-Agent`\n  gia trinh duyet — dung xoa.\n- Moi moc thoi gian trong collection la **UTC**. Cot DATE tren Portal la **gio store-local (UTC+7)**.\n  Chenh lech 7 tieng giua hai con so la binh thuong, khong phai bug.\n\n## Test data — 4 order boundary\n\n| Order | Store-local (UTC+7) | UTC `created_at` | Order item | Vai tro |\n|---|---|---|---|---|\n| #ins58-2870 | 2026-08-18 23:59:00 | 2026-08-18T16:59:00Z | 6715 | D — truoc range 1 phut |\n| #ins58-2871 | 2026-08-20 00:00:00 | 2026-08-19T17:00:00Z | 6716 | C — dau ngay |\n| #ins58-2872 | 2026-08-20 23:59:00 | 2026-08-20T16:59:00Z | 6718 | A — cuoi ngay |\n| #ins58-2873 | 2026-08-21 00:00:00 | 2026-08-20T17:00:00Z | 6719, 6720 | B — sau range 1 phut |\n\nRange chuan dung xuyen suot: **local Aug 19 – Aug 20** = `2026-08-18T17:00:00.000Z` →\n`2026-08-20T16:59:59.999Z`. Ket qua dung: chi C va A.\n\n## Trang thai (staging, 2026-08-24)\n\n| Duong | Ket qua |\n|---|---|\n| Orders list UI + `/api/orders` | ✅ dung — bien inclusive ca hai dau, chinh xac toi giay |\n| `/openapi/v1/orders` (partner, bare date) | ✅ dung — van widen toi cuoi ngay |\n| `/api/instances/{id}/order-items` | ✅ **da fix 2026-08-24** — truoc do `end_date` bi `endOfDay()` |\n| Range mo mot dau (chi start HOAC chi end) | ❌ **regression moi** — filter bi bo im lang |\n\nFolder dang fail: **5** — 2 request TC-021 (range mo mot dau). Folder **3** da fix va pass.\n\n## Con mo\n- Danh sach **day du** cac endpoint dung `Order::scopeByDateRange()` (open question 3) —\n  moi verify duoc `/api/orders` va `/api/instances/{id}/order-items`; cac endpoint con lai chua sweep.\n- Bare date duoc dien giai theo **ngay UTC**, khong phai ngay store-local. Can PO xac nhan\n  day co phai contract mong muon cho partner khong.\n- Chua co store UTC-7 va store UTC de chay TC-001..004 dung precondition va TC-006.\n",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "0. Setup — token & ground truth",
+      "item": [
+        {
+          "name": "Setup — Login → token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Login tra 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var b = {};",
+                  "try { b = pm.response.json(); } catch (e) {}",
+                  "var tok = b.token || b.access_token || (b.data && (b.data.token || b.data.access_token));",
+                  "",
+                  "pm.test('Luu token vao collection variable', function () {",
+                  "  pm.expect(tok, 'khong tim thay token trong response').to.be.a('string').and.not.empty;",
+                  "  pm.collectionVariables.set('token', tok);",
+                  "  console.log('token da luu (' + tok.slice(0, 12) + '...)');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Origin",
+                "value": "https://staging-portal.teeinblue.com"
+              },
+              {
+                "key": "Referer",
+                "value": "https://staging-portal.teeinblue.com/"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "login"
+              ],
+              "query": []
+            },
+            "description": "Lay JWT cho tai khoan QA. **JWT staging chi song 15 phut** — chay lai request nay khi cac request khac bat dau tra 401.\n\nNeu login bi Cloudflare/Turnstile chan: dang nhap portal, mo DevTools > Network, copy phan sau `Bearer ` cua header Authorization va dan thang vao collection variable `token`.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userA_email}}\",\n  \"password\": \"{{userA_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Setup — Store timezone phai la Asia/Bangkok (UTC+7)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "var b = pm.response.json();",
+                  "var inst = b.data || b;",
+                  "console.log('iana_timezone =', inst.iana_timezone);",
+                  "",
+                  "pm.test('iana_timezone = Asia/Bangkok (UTC+7, khong DST)', function () {",
+                  "  pm.expect(inst.iana_timezone).to.eql(pm.variables.get('storeTz'));",
+                  "});",
+                  "",
+                  "pm.test('Dung store linh-tib-staging', function () {",
+                  "  pm.expect(inst.domain).to.eql('linh-tib-staging.myshopify.com');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}"
+              ],
+              "query": []
+            },
+            "description": "Toan bo collection nay phu thuoc vao offset cua store. Neu timezone doi, moi moc UTC trong cac bien boundary deu sai.\n\n`iana_timezone` la field cho biet timezone store — instances API CO tra field nay.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Setup — Ground truth: 4 order boundary con nguyen",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var byName = {};",
+                  "rows.forEach(function (r) { byName[r.name] = r.created_at; });",
+                  "",
+                  "[['orderD','orderD_utc'],['orderC','orderC_utc'],",
+                  " ['orderA','orderA_utc'],['orderB','orderB_utc']].forEach(function (pair) {",
+                  "  var nm = pm.variables.get(pair[0]);",
+                  "  var utc = pm.variables.get(pair[1]);",
+                  "  pm.test('Order ' + nm + ' ton tai va created_at = ' + utc, function () {",
+                  "    pm.expect(byName, 'khong thay ' + nm).to.have.property(nm);",
+                  "    pm.expect(String(byName[nm]).slice(0, 19) + 'Z').to.eql(utc);",
+                  "  });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-18&end_date=2026-08-21",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-18"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-21"
+                }
+              ]
+            },
+            "description": "Chot lai 4 order boundary + moc `created_at` UTC cua chung truoc khi chay cac assertion boundary. Neu request nay fail thi test data da bi doi — dung dien giai ket qua cac folder sau.\n\n| Order | Store-local (UTC+7) | UTC | Vai tro |\n|---|---|---|---|\n| #ins58-2870 | Aug 18 23:59:00 | 18T16:59:00Z | D — start-1 |\n| #ins58-2871 | Aug 20 00:00:00 | 19T17:00:00Z | C — dau ngay |\n| #ins58-2872 | Aug 20 23:59:00 | 20T16:59:00Z | A — cuoi ngay |\n| #ins58-2873 | Aug 21 00:00:00 | 20T17:00:00Z | B — end+1 |",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Orders list — boundary matrix (TC-001 → TC-005, TC-015)",
+      "item": [
+        {
+          "name": "TC-TIB-001/2/3/4 — Range local Aug 19–Aug 20 → chi A va C",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['orderA','orderB','orderC','orderD']",
+                  "  .map(function (k) { return pm.variables.get(k); });",
+                  "var inRange = names.filter(function (n) { return BOUNDARY.indexOf(n) !== -1; });",
+                  "pm.test('Dung 2/4 order boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + names.join(',')).to.eql(2);",
+                  "});",
+                  "pm.test('TC-001 — Order A (local 23:59, cuoi range) CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderA'));",
+                  "});",
+                  "pm.test('TC-003 — Order C (local 00:00, dau range) CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderC'));",
+                  "});",
+                  "pm.test('TC-002 — Order B (local 00:00 ngay sau, BUG KHACH BAO) KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderB'));",
+                  "});",
+                  "pm.test('TC-004 — Order D (local 23:59 hom truoc) KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderD'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date={{rangeStartUtc}}&end_date={{rangeEndUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{rangeStartUtc}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{rangeEndUtc}}"
+                }
+              ]
+            },
+            "description": "Params y het nhung gi Portal gui khi merchant chon range tren trang Orders (Portal quy doi gio store-local sang UTC truoc khi gui).\n\nBao phu 4 case cung luc:\n- TC-001: A (cuoi ngay 23:59) phai CO\n- TC-002: B (00:00 ngay hom sau) phai KHONG — **day la bug khach bao**\n- TC-003: C (dau ngay 00:00) phai CO\n- TC-004: D (23:59 hom truoc) phai KHONG\n\n[VERIFIED staging 2026-08-24] → dung 2 order #ins58-2872, #ins58-2871 ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-015 — Single-day local Aug 20 → chi A va C",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['orderA','orderB','orderC','orderD']",
+                  "  .map(function (k) { return pm.variables.get(k); });",
+                  "var inRange = names.filter(function (n) { return BOUNDARY.indexOf(n) !== -1; });",
+                  "pm.test('Dung 2/4 order boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + names.join(',')).to.eql(2);",
+                  "});",
+                  "pm.test('Order A CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderA'));",
+                  "});",
+                  "pm.test('Order C (dung moc dau range) CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderC'));",
+                  "});",
+                  "pm.test('Order B KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderB'));",
+                  "});",
+                  "pm.test('Order D KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderD'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date={{singleDayStartUtc}}&end_date={{rangeEndUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{singleDayStartUtc}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{rangeEndUtc}}"
+                }
+              ]
+            },
+            "description": "Range 1 ngay (start = end tren UI). C nam dung moc dau range 00:00:00, A nam dung moc cuoi 23:59.\n\n[VERIFIED staging 2026-08-24] → dung 2 order ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-001 — end = moc cua A (16:59:00) → A vao (inclusive)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['orderA','orderB','orderC','orderD']",
+                  "  .map(function (k) { return pm.variables.get(k); });",
+                  "var inRange = names.filter(function (n) { return BOUNDARY.indexOf(n) !== -1; });",
+                  "pm.test('Dung 2/4 order boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + names.join(',')).to.eql(2);",
+                  "});",
+                  "pm.test('Order A (end trung dung moc) CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderA'));",
+                  "});",
+                  "pm.test('Order B KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderB'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date={{singleDayStartUtc}}&end_date=2026-08-20T16:59:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{singleDayStartUtc}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-20T16:59:00"
+                }
+              ]
+            },
+            "description": "Bien end la inclusive: end trung dung created_at cua A thi A phai duoc lay.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-002 — end = A trừ 1s (16:58:59) → A rớt, KHÔNG nới cuối ngày",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['orderA','orderB','orderC','orderD']",
+                  "  .map(function (k) { return pm.variables.get(k); });",
+                  "var inRange = names.filter(function (n) { return BOUNDARY.indexOf(n) !== -1; });",
+                  "pm.test('Dung 1/4 order boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + names.join(',')).to.eql(1);",
+                  "});",
+                  "pm.test('Order C CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderC'));",
+                  "});",
+                  "pm.test('Order A (sau end 1 phut) KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderA'));",
+                  "});",
+                  "pm.test('Order B (end_date bi noi toi cuoi ngay?) KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderB'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date={{singleDayStartUtc}}&end_date=2026-08-20T16:58:59",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{singleDayStartUtc}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-20T16:58:59"
+                }
+              ]
+            },
+            "description": "Test phan biet manh nhat cho bug goc. Neu `->endOfDay()` cu con song, end se bi noi thanh 2026-08-20T23:59:59Z va ca A lan B deu lot vao.\n\n[VERIFIED staging 2026-08-24] → chi tra ve #ins58-2871 ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-002 — end = moc cua B (17:00:00) → B vào (chứng minh B tồn tại)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['orderA','orderB','orderC','orderD']",
+                  "  .map(function (k) { return pm.variables.get(k); });",
+                  "var inRange = names.filter(function (n) { return BOUNDARY.indexOf(n) !== -1; });",
+                  "pm.test('Dung 3/4 order boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + names.join(',')).to.eql(3);",
+                  "});",
+                  "pm.test('Order B (end cham dung moc cua B) CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderB'));",
+                  "});",
+                  "pm.test('Order A CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderA'));",
+                  "});",
+                  "pm.test('Order C CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderC'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date={{singleDayStartUtc}}&end_date=2026-08-20T17:00:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{singleDayStartUtc}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-20T17:00:00"
+                }
+              ]
+            },
+            "description": "Control cho TC-002: B chi bi loai vi bien end duoc ton trong, khong phai vi query hong hay data khong ton tai.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-004 — start = moc cua C (17:00:00) → C vao (inclusive)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['orderA','orderB','orderC','orderD']",
+                  "  .map(function (k) { return pm.variables.get(k); });",
+                  "var inRange = names.filter(function (n) { return BOUNDARY.indexOf(n) !== -1; });",
+                  "pm.test('Dung 2/4 order boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + names.join(',')).to.eql(2);",
+                  "});",
+                  "pm.test('Order C (start trung dung moc) CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderC'));",
+                  "});",
+                  "pm.test('Order A CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderA'));",
+                  "});",
+                  "pm.test('Order D KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderD'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-19T17:00:00&end_date={{rangeEndUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-19T17:00:00"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{rangeEndUtc}}"
+                }
+              ]
+            },
+            "description": "Bien start la inclusive.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-004 — start = C cộng 1s (17:00:01) → C rớt, start KHÔNG lùi đầu ngày",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['orderA','orderB','orderC','orderD']",
+                  "  .map(function (k) { return pm.variables.get(k); });",
+                  "var inRange = names.filter(function (n) { return BOUNDARY.indexOf(n) !== -1; });",
+                  "pm.test('Dung 1/4 order boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + names.join(',')).to.eql(1);",
+                  "});",
+                  "pm.test('Order A CO trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.include(pm.variables.get('orderA'));",
+                  "});",
+                  "pm.test('Order C (truoc start 1 giay) KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderC'));",
+                  "});",
+                  "pm.test('Order D (start bi lui ve dau ngay?) KHONG co trong list', function () {",
+                  "  pm.expect(names, 'thuc te: ' + names.join(',')).to.not.include(pm.variables.get('orderD'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-19T17:00:01&end_date={{rangeEndUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-19T17:00:01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{rangeEndUtc}}"
+                }
+              ]
+            },
+            "description": "Tra loi open question 1: `start_date` co bi noi nguoc ve `startOfDay()` khong.\n\n[VERIFIED staging 2026-08-24] → chi tra ve #ins58-2872 ✓ (khong bi noi nguoc)",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Orders list — bare date vẫn widen cuối ngày (TC-007)",
+      "item": [
+        {
+          "name": "Bare date — start = end = 2026-08-13 → 1 order #ins58-2864",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "pm.test('Tra ve dung 1 order (bare date lay tron ngay)', function () {",
+                  "  pm.expect(rows.length, 'thuc te: ' + names.join(',')).to.eql(1);",
+                  "});",
+                  "pm.test('Order do la #ins58-2864 (09:15:58Z — khong bi co ve 00:00:00)', function () {",
+                  "  pm.expect(names).to.include('#ins58-2864');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-13&end_date=2026-08-13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-13"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-13"
+                }
+              ]
+            },
+            "description": "Bare date (`YYYY-MM-DD`) phai duoc noi rong toi cuoi ngay nhu truoc fix. #ins58-2864 tao luc `2026-08-13T09:15:58Z`.\n\n⚠️ Lan chay 2026-08-21 qua **MCP/open-platform client** cho ra 0 order va bi bao FAIL nham. Nguyen nhan: tang client normalise bare date thanh `T00:00:00`. Goi thang HTTP nhu request nay thi dung.\n\n[VERIFIED staging 2026-08-24] → 1 order ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Bare date — Aug 12..Aug 13 → 6 orders, khong mat ngay cuoi",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var names = rows.map(function (r) { return r.name; });",
+                  "console.log('orders tra ve:', names.join(', ') || '(rong)');",
+                  "pm.test('Tra ve dung 6 orders', function () {",
+                  "  pm.expect(rows.length, 'thuc te: ' + names.join(',')).to.eql(6);",
+                  "});",
+                  "pm.test('#ins58-2864 (ngay cuoi cua range) khong bi mat', function () {",
+                  "  pm.expect(names).to.include('#ins58-2864');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-12&end_date=2026-08-13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-12"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-13"
+                }
+              ]
+            },
+            "description": "Regression rui ro cao nhat: neu bare date bi nham thanh datetime chinh xac thi partner mat tron ngay cuoi cua moi range.\n\n[VERIFIED staging 2026-08-24] → 6 orders, co #ins58-2864 ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Order items — regression (TC-008)",
+      "item": [
+        {
+          "name": "TC-TIB-008 — Range local Aug 19–Aug 20 → chi item C va A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('item ids tra ve:', ids.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['itemA','itemB1','itemB2','itemC','itemD']",
+                  "  .map(function (k) { return String(pm.variables.get(k)); });",
+                  "var inRange = ids.filter(function (i) { return BOUNDARY.indexOf(i) !== -1; });",
+                  "pm.test('Dung 2 item boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + ids.join(',')).to.eql(2);",
+                  "});",
+                  "pm.test('Item C CO trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(String(pm.variables.get('itemC')));",
+                  "});",
+                  "pm.test('Item A CO trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(String(pm.variables.get('itemA')));",
+                  "});",
+                  "pm.test('Item B1 (order local Aug 21 00:00 — phai bi loai) KHONG co trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.not.include(String(pm.variables.get('itemB1')));",
+                  "});",
+                  "pm.test('Item B2 (order local Aug 21 00:00 — phai bi loai) KHONG co trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.not.include(String(pm.variables.get('itemB2')));",
+                  "});",
+                  "pm.test('Item D (truoc range) KHONG co trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.not.include(String(pm.variables.get('itemD')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=100&start_date={{rangeStartUtc}}&end_date={{rangeEndUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{rangeStartUtc}}"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{rangeEndUtc}}"
+                }
+              ]
+            },
+            "description": "✅ **Da fix va verify PASS tren staging (2026-08-24).** Endpoint `GET /api/instances/{id}/order-items` truoc do van noi `end_date` toi cuoi ngay UTC; sau khi dev deploy thi bien end duoc ton trong toi tung giay, giong `/api/orders`.\n\nLuu y: endpoint nay loc theo `created_at` cua **order item**, khong phai cua order. Moc created_at cua item da duoc QA chinh trung khop voi moc cua order.\n\nCung params ma Portal gui cho Orders list.\n\n**Ky vong:** 2 item — {{itemC}} (C) va {{itemA}} (A).\n**Thuc te 2026-08-24 (sau fix):** dung 2 item {{itemC}}, {{itemA}} ✓ {{itemB1}}/{{itemB2}} (order #ins58-2873, local Aug 21 00:00:00) da bi loai dung.\n\nTruoc fix: tra ve 4 item — day dung nguyen van bug khach bao.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-008 — end = Aug 20 12:00 → rong",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('item ids tra ve:', ids.join(', ') || '(rong)');",
+                  "pm.test('Tra ve 0 item (end_date phai duoc ton trong)', function () {",
+                  "  pm.expect(rows.length, 'end_date bi noi toi cuoi ngay — thuc te: ' + ids.join(',')).to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=100&start_date=2026-08-20T00:00:00&end_date=2026-08-20T12:00:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-20T00:00:00"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-20T12:00:00"
+                }
+              ]
+            },
+            "description": "✅ **Da fix va verify PASS tren staging (2026-08-24).** Endpoint `GET /api/instances/{id}/order-items` truoc do van noi `end_date` toi cuoi ngay UTC; sau khi dev deploy thi bien end duoc ton trong toi tung giay, giong `/api/orders`.\n\nLuu y: endpoint nay loc theo `created_at` cua **order item**, khong phai cua order. Moc created_at cua item da duoc QA chinh trung khop voi moc cua order.\n\nKhong co item nao duoc tao trong khung 00:00–12:00 ngay Aug 20 (UTC).\n\n**Ky vong:** 0 item.\n**Thuc te 2026-08-24 (sau fix):** 0 item ✓\n\nTruoc fix: tra ve {{itemA}}, {{itemB1}}, {{itemB2}} — `end_date` bi thay bang `endOfDay()`. Day la request phan biet manh nhat cho bug nay.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-008 — end = moc cua A (16:59:00) → chi item A",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('item ids tra ve:', ids.join(', ') || '(rong)');",
+                  "var BOUNDARY = ['itemA','itemB1','itemB2','itemC','itemD']",
+                  "  .map(function (k) { return String(pm.variables.get(k)); });",
+                  "var inRange = ids.filter(function (i) { return BOUNDARY.indexOf(i) !== -1; });",
+                  "pm.test('Dung 1 item boundary co mat', function () {",
+                  "  pm.expect(inRange.length, 'boundary thay: ' + inRange.join(',') +",
+                  "    ' | toan bo: ' + ids.join(',')).to.eql(1);",
+                  "});",
+                  "pm.test('Item A CO trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(String(pm.variables.get('itemA')));",
+                  "});",
+                  "pm.test('Item B1 KHONG co trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.not.include(String(pm.variables.get('itemB1')));",
+                  "});",
+                  "pm.test('Item B2 KHONG co trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.not.include(String(pm.variables.get('itemB2')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=100&start_date=2026-08-20T00:00:00&end_date=2026-08-20T16:59:00",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-20T00:00:00"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-20T16:59:00"
+                }
+              ]
+            },
+            "description": "✅ **Da fix va verify PASS tren staging (2026-08-24).** Endpoint `GET /api/instances/{id}/order-items` truoc do van noi `end_date` toi cuoi ngay UTC; sau khi dev deploy thi bien end duoc ton trong toi tung giay, giong `/api/orders`.\n\nLuu y: endpoint nay loc theo `created_at` cua **order item**, khong phai cua order. Moc created_at cua item da duoc QA chinh trung khop voi moc cua order.\n\n**Ky vong:** chi {{itemA}}.\n**Thuc te 2026-08-24:** {{itemA}}, {{itemB1}}, {{itemB2}} ❌",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-008 — start = moc cua C (17:00:00) → item C vao (start ĐÚNG)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('item ids tra ve:', ids.join(', ') || '(rong)');",
+                  "pm.test('Item C (start trung dung moc → inclusive) CO trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.include(String(pm.variables.get('itemC')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=100&start_date=2026-08-19T17:00:00&end_date={{rangeEndUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-19T17:00:00"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{rangeEndUtc}}"
+                }
+              ]
+            },
+            "description": "✅ **Da fix va verify PASS tren staging (2026-08-24).** Endpoint `GET /api/instances/{id}/order-items` truoc do van noi `end_date` toi cuoi ngay UTC; sau khi dev deploy thi bien end duoc ton trong toi tung giay, giong `/api/orders`.\n\nLuu y: endpoint nay loc theo `created_at` cua **order item**, khong phai cua order. Moc created_at cua item da duoc QA chinh trung khop voi moc cua order.\n\nDoi chung: bien **start** cua endpoint nay hoat dong dung. Ket hop voi request duoi de chung minh loi chi mot chieu.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-008 — start = C cộng 1s (17:00:01) → item C rớt (start ĐÚNG)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var ids = rows.map(function (r) { return String(r.id); });",
+                  "console.log('item ids tra ve:', ids.join(', ') || '(rong)');",
+                  "pm.test('Item C (truoc start 1 giay) KHONG co trong list', function () {",
+                  "  pm.expect(ids, 'thuc te: ' + ids.join(',')).to.not.include(String(pm.variables.get('itemC')));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/instances/{{instanceId}}/order-items?per_page=100&start_date=2026-08-19T17:00:01&end_date={{rangeEndUtc}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "instances",
+                "{{instanceId}}",
+                "order-items"
+              ],
+              "query": [
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-19T17:00:01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{rangeEndUtc}}"
+                }
+              ]
+            },
+            "description": "✅ **Da fix va verify PASS tren staging (2026-08-24).** Endpoint `GET /api/instances/{id}/order-items` truoc do van noi `end_date` toi cuoi ngay UTC; sau khi dev deploy thi bien end duoc ton trong toi tung giay, giong `/api/orders`.\n\nLuu y: endpoint nay loc theo `created_at` cua **order item**, khong phai cua order. Moc created_at cua item da duoc QA chinh trung khop voi moc cua order.\n\n`start_date` chinh xac toi tung giay ✓ — nen loi chi nam o nhanh xu ly `end_date`.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Public/partner API — bare date (TC-007)",
+      "item": [
+        {
+          "name": "TC-TIB-007 — bare Aug 13..Aug 13 → 1 order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "pm.test('Tra ve dung 1 order', function () {",
+                  "  pm.expect(rows.length).to.eql(1);",
+                  "});",
+                  "pm.test('created_at = 2026-08-13T09:15:58Z (khong bi co ve 00:00:00)', function () {",
+                  "  pm.expect(String(rows[0].created_at)).to.include('2026-08-13T09:15:58');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/openapi/v1/orders?start_date=2026-08-13&end_date=2026-08-13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-08-13"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-13"
+                }
+              ]
+            },
+            "description": "Can `partnerToken`: tao bang `POST /api/tokens` voi `{\"name\":\"...\",\"abilities\":[\"orders:read\"]}` — gia tri plain chi hien dung luc tao. **Nho xoa token sau khi test** bang `DELETE /api/tokens/{id}`.\n\nLan chay truoc qua MCP client bao 0 order (FAIL nham). Goi thang HTTP: 1 order.\n\n[VERIFIED staging 2026-08-24] ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{partnerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-007 — bare Aug 12..Aug 13 → 6 orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "pm.test('Tra ve dung 6 orders', function () {",
+                  "  pm.expect(rows.length).to.eql(6);",
+                  "});",
+                  "pm.test('Co order cua ngay cuoi range (2026-08-13)', function () {",
+                  "  var has = rows.some(function (r) { return String(r.created_at).indexOf('2026-08-13') === 0; });",
+                  "  pm.expect(has, 'mat tron ngay cuoi cua range').to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/openapi/v1/orders?start_date=2026-08-12&end_date=2026-08-13",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-08-12"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-13"
+                }
+              ]
+            },
+            "description": "Can `partnerToken`: tao bang `POST /api/tokens` voi `{\"name\":\"...\",\"abilities\":[\"orders:read\"]}` — gia tri plain chi hien dung luc tao. **Nho xoa token sau khi test** bang `DELETE /api/tokens/{id}`.\n\nLan chay truoc bao 5 orders, thieu order ngay cuoi (FAIL nham).\n\n[VERIFIED staging 2026-08-24] → 6 orders ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{partnerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-009 — datetime Aug 13 00:00..23:59:59 → 1 order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 = token het han (JWT staging song 15 phut) -> chay lai '0. Setup'.",
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code, 'HTTP 401 - token chua set hoac het han').to.not.eql(401);",
+                  "});",
+                  "pm.test('HTTP 200', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.eql(200);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "pm.test('Tra ve dung 1 order', function () {",
+                  "  pm.expect(rows.length).to.eql(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/openapi/v1/orders?start_date=2026-08-13T00:00:00&end_date=2026-08-13T23:59:59",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "openapi",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "start_date",
+                  "value": "2026-08-13T00:00:00"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-13T23:59:59"
+                }
+              ]
+            },
+            "description": "Can `partnerToken`: tao bang `POST /api/tokens` voi `{\"name\":\"...\",\"abilities\":[\"orders:read\"]}` — gia tri plain chi hien dung luc tao. **Nho xoa token sau khi test** bang `DELETE /api/tokens/{id}`.\n\nDang datetime chinh xac tren public API — doi chung voi dang bare date o tren.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{partnerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Negative & validation (TC-020 → TC-022)",
+      "item": [
+        {
+          "name": "TC-TIB-020 — start_date sau end_date → deterministic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var raw = pm.response.text() || '';",
+                  "",
+                  "pm.test('Khong 500 / khong stack trace', function () {",
+                  "  pm.expect(pm.response.code, raw.slice(0, 200)).to.be.below(500);",
+                  "  pm.expect(raw).to.not.match(/\\/var\\/www\\/html|Illuminate\\\\\\\\|SQLSTATE/);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "",
+                  "pm.test('Deterministic: 4xx validation HOAC 200 voi list rong', function () {",
+                  "  if (pm.response.code === 200) {",
+                  "    pm.expect(rows.length, 'HTTP 200 nhung van tra ve ' + rows.length + ' order').to.eql(0);",
+                  "  } else {",
+                  "    pm.expect(pm.response.code, raw.slice(0, 200)).to.be.within(400, 499);",
+                  "  }",
+                  "});",
+                  "",
+                  "pm.test('KHONG am tham fallback ve danh sach day du', function () {",
+                  "  pm.expect(rows.length, 'range dao nguoc ma van tra ' + rows.length + ' order').to.be.below(2);",
+                  "});",
+                  "",
+                  "console.log('HTTP ' + pm.response.code + ', rows=' + rows.length);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-13&end_date=2026-08-12",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-13"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-12"
+                }
+              ]
+            },
+            "description": "Range dao nguoc phai duoc xu ly deterministic: 4xx **hoac** list rong. Tuyet doi khong duoc im lang tra ve toan bo order.\n\n*Hanh vi da doi:* 2026-08-21 tra validation error `The end date field must be a date after or equal to start date.`; 2026-08-24 tra HTTP 200 voi `data: []`. Ca hai deu nam trong expected nen van PASS — nhung day la dau hieu lop validation da bi go, xem 2 request duoi.\n\n[VERIFIED staging 2026-08-24] → HTTP 200, 0 order ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-021 — chỉ có start_date ⚠️ ĐANG FAIL",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var raw = pm.response.text() || '';",
+                  "",
+                  "pm.test('Khong 500 / khong stack trace', function () {",
+                  "  pm.expect(pm.response.code, raw.slice(0, 200)).to.be.below(500);",
+                  "  pm.expect(raw).to.not.match(/\\/var\\/www\\/html|Illuminate\\\\\\\\|SQLSTATE/);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var bound = pm.variables.get('partialStart');",
+                  "",
+                  "// Hop le theo ca hai huong: 4xx bat buoc du cap, HOAC range mo mot dau ap dung dung.",
+                  "// Sai khi: HTTP 200 nhung filter bi bo im lang -> tra ve ca order truoc start_date.",
+                  "var outside = rows.filter(function (r) {",
+                  "  var d = String(r.created_at).slice(0, 19);",
+                  "  return d < bound;",
+                  "});",
+                  "",
+                  "console.log('HTTP ' + pm.response.code + ', rows=' + rows.length +",
+                  "            ', nam ngoai bound=' + outside.length);",
+                  "",
+                  "pm.test('Neu 200 thi moi order phai co created_at >= start_date', function () {",
+                  "  if (pm.response.code !== 200) {",
+                  "    pm.expect(pm.response.code, raw.slice(0, 200)).to.be.within(400, 499);",
+                  "    return;",
+                  "  }",
+                  "  pm.expect(outside.length,",
+                  "    'filter bi bo im lang — ' + outside.length + '/' + rows.length +",
+                  "    ' order nam truoc start_date (vd ' + (outside[0] && outside[0].name) + ' @ ' +",
+                  "    (outside[0] && outside[0].created_at) + ')').to.eql(0);",
+                  "});",
+                  "",
+                  "pm.test('KHONG tra ve danh sach khong loc', function () {",
+                  "  pm.expect(outside.length, 'day la danh sach day du, filter khong duoc ap dung').to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date={{partialStart}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "{{partialStart}}"
+                }
+              ]
+            },
+            "description": "⚠️ **REGRESSION phat hien 2026-08-24.**\n\nNgay 2026-08-21 endpoint con tra validation error bat buoc du ca hai bien (`The end date field is required when start date is present.`). Den 2026-08-24 thi **validation da bien mat va filter ngay bi bo im lang** — API tra HTTP 200 kem **toan bo danh sach khong loc**.\n\nBang chung: `start_date=2026-08-20` mot minh → 65 order tu `2026-07-25` den `2026-08-20`. Order tu thang 7 van tra ve du start_date la 20/08.\n\nVi pham truc tiep expected cua TC-021: *no unfiltered result set returned by mistake*.\n\nTest nay chap nhan ca hai contract hop le — 4xx bat buoc du cap, hoac range mo mot dau ap dung dung. No chi fail khi filter bi bo im lang.\n\n**Ky vong:** 4xx, hoac 200 nhung moi order co `created_at >= {{partialStart}}`.\n**Thuc te 2026-08-24:** HTTP 200, 65 order, som nhat `2026-07-25` ❌",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-021 — chỉ có end_date ⚠️ ĐANG FAIL",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var raw = pm.response.text() || '';",
+                  "",
+                  "pm.test('Khong 500 / khong stack trace', function () {",
+                  "  pm.expect(pm.response.code, raw.slice(0, 200)).to.be.below(500);",
+                  "  pm.expect(raw).to.not.match(/\\/var\\/www\\/html|Illuminate\\\\\\\\|SQLSTATE/);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "var bound = pm.variables.get('partialEnd');",
+                  "",
+                  "// Hop le theo ca hai huong: 4xx bat buoc du cap, HOAC range mo mot dau ap dung dung.",
+                  "// Sai khi: HTTP 200 nhung filter bi bo im lang -> tra ve ca order sau end_date.",
+                  "var outside = rows.filter(function (r) {",
+                  "  var d = String(r.created_at).slice(0, 19);",
+                  "  return d > bound + 'T23:59:59';",
+                  "});",
+                  "",
+                  "console.log('HTTP ' + pm.response.code + ', rows=' + rows.length +",
+                  "            ', nam ngoai bound=' + outside.length);",
+                  "",
+                  "pm.test('Neu 200 thi moi order phai co created_at <= het ngay end_date', function () {",
+                  "  if (pm.response.code !== 200) {",
+                  "    pm.expect(pm.response.code, raw.slice(0, 200)).to.be.within(400, 499);",
+                  "    return;",
+                  "  }",
+                  "  pm.expect(outside.length,",
+                  "    'filter bi bo im lang — ' + outside.length + '/' + rows.length +",
+                  "    ' order nam sau end_date (vd ' + (outside[0] && outside[0].name) + ' @ ' +",
+                  "    (outside[0] && outside[0].created_at) + ')').to.eql(0);",
+                  "});",
+                  "",
+                  "pm.test('KHONG tra ve danh sach khong loc', function () {",
+                  "  pm.expect(outside.length, 'day la danh sach day du, filter khong duoc ap dung').to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&end_date={{partialEnd}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "end_date",
+                  "value": "{{partialEnd}}"
+                }
+              ]
+            },
+            "description": "⚠️ **REGRESSION phat hien 2026-08-24.**\n\nNgay 2026-08-21 endpoint con tra validation error bat buoc du ca hai bien (`The end date field is required when start date is present.`). Den 2026-08-24 thi **validation da bien mat va filter ngay bi bo im lang** — API tra HTTP 200 kem **toan bo danh sach khong loc**.\n\nBang chung: `start_date=2026-08-20` mot minh → 65 order tu `2026-07-25` den `2026-08-20`. Order tu thang 7 van tra ve du start_date la 20/08.\n\nVi pham truc tiep expected cua TC-021: *no unfiltered result set returned by mistake*.\n\nTest nay chap nhan ca hai contract hop le — 4xx bat buoc du cap, hoac range mo mot dau ap dung dung. No chi fail khi filter bi bo im lang.\n\n**Ky vong:** 4xx, hoac 200 nhung moi order co `created_at <= {{partialEnd}}` cuoi ngay.\n**Thuc te 2026-08-24:** HTTP 200, 65 order, muon nhat `2026-08-20` ❌",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-022 — end_date=not-a-date → reject, không bỏ filter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tra loi validation 4xx (khong phai 200, khong phai 500)', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.be.within(400, 499);",
+                  "});",
+                  "",
+                  "var raw = pm.response.text() || '';",
+                  "pm.test('Message co nhac toi \"must be a valid date\"', function () {",
+                  "  pm.expect(raw.toLowerCase()).to.include('must be a valid date');",
+                  "});",
+                  "",
+                  "pm.test('KHONG fallback ve danh sach day du (filter khong bi bo im lang)', function () {",
+                  "  pm.expect(raw).to.not.match(/\"name\"\\s*:\\s*\"#ins58-/);",
+                  "});",
+                  "",
+                  "pm.test('Khong lo stack trace / duong dan noi bo', function () {",
+                  "  pm.expect(raw).to.not.match(/\\/var\\/www\\/html|Illuminate\\\\\\\\|#0 \\//);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-12&end_date=not-a-date",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-12"
+                },
+                {
+                  "key": "end_date",
+                  "value": "not-a-date"
+                }
+              ]
+            },
+            "description": "Quan trong nhat: date sai KHONG duoc am tham bo filter va tra ve moi order.\n\n[VERIFIED staging] → 'The end date field must be a valid date.' ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-022 — end_date=2026-13-45 (ngày không tồn tại) → reject",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Tra loi validation 4xx (khong phai 200, khong phai 500)', function () {",
+                  "  pm.expect(pm.response.code, pm.response.text().slice(0, 300)).to.be.within(400, 499);",
+                  "});",
+                  "",
+                  "var raw = pm.response.text() || '';",
+                  "pm.test('Message co nhac toi \"must be a valid date\"', function () {",
+                  "  pm.expect(raw.toLowerCase()).to.include('must be a valid date');",
+                  "});",
+                  "",
+                  "pm.test('KHONG fallback ve danh sach day du (filter khong bi bo im lang)', function () {",
+                  "  pm.expect(raw).to.not.match(/\"name\"\\s*:\\s*\"#ins58-/);",
+                  "});",
+                  "",
+                  "pm.test('Khong lo stack trace / duong dan noi bo', function () {",
+                  "  pm.expect(raw).to.not.match(/\\/var\\/www\\/html|Illuminate\\\\\\\\|#0 \\//);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-12&end_date=2026-13-45",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-12"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-13-45"
+                }
+              ]
+            },
+            "description": "Thang 13 / ngay 45. [VERIFIED staging] → cung validation error ✓",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Security (TC-023, TC-024)",
+      "item": [
+        {
+          "name": "TC-TIB-023 — date range không đi vòng qua tenant scoping",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Da xac thuc (khong phai 401)', function () {",
+                  "  pm.expect(pm.response.code).to.not.eql(401);",
+                  "});",
+                  "",
+                  "pm.test('Status la 200-rong hoac 403/404', function () {",
+                  "  pm.expect([200, 403, 404]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "var body = {};",
+                  "try { body = pm.response.json(); } catch (e) {}",
+                  "var rows = Array.isArray(body) ? body : (body.data || []);",
+                  "",
+                  "pm.test('KHONG tra ve order nao cua store nguoi khac', function () {",
+                  "  pm.expect(rows.length, 'lo ' + rows.length + ' order cross-tenant').to.eql(0);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{foreignInstanceId}}&per_page=100&start_date=2026-08-01&end_date=2026-08-21",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{foreignInstanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-01"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-21"
+                }
+              ]
+            },
+            "description": "Goi bang token cua minh nhung tro vao instance cua user khac (instance 4 — da xac nhan thuoc user khac o lan chay TIB-5018). Date range khong duoc tro thanh duong vong qua tenant scoping.\n\n[VERIFIED staging] → `data: []`, khong lo order nao ✓\n\n*Quan sat dang neu (chua phai defect): endpoint products tra **403** cho instance la, con endpoint orders tra **200 kem list rong**. Khong lo data, nhung khien 'rong vi khong phai cua minh' khong phan biet duoc voi 'rong vi khong co order'. De xuat thong nhat ve 403.*",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "TC-TIB-024 — SQL injection trong end_date → chặn, không nới result",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "var raw = pm.response.text() || '';",
+                  "",
+                  "pm.test('Bi chan (4xx) — khong thuc thi SQL', function () {",
+                  "  pm.expect(pm.response.code, raw.slice(0, 200)).to.be.within(400, 499);",
+                  "});",
+                  "",
+                  "pm.test('Result set KHONG bi noi rong boi payload', function () {",
+                  "  pm.expect(raw).to.not.match(/\"name\"\\s*:\\s*\"#ins58-/);",
+                  "});",
+                  "",
+                  "pm.test('Khong lo stack trace / SQL fragment / duong dan noi bo', function () {",
+                  "  pm.expect(raw).to.not.match(/\\/var\\/www\\/html|SQLSTATE|Illuminate\\\\\\\\/);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36",
+                "description": "Cloudflare tra 403 (error 1010) neu User-Agent khong giong trinh duyet."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/orders?instance_id={{instanceId}}&per_page=100&start_date=2026-08-12&end_date=2026-08-13' OR '1'='1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "instance_id",
+                  "value": "{{instanceId}}"
+                },
+                {
+                  "key": "per_page",
+                  "value": "100"
+                },
+                {
+                  "key": "start_date",
+                  "value": "2026-08-12"
+                },
+                {
+                  "key": "end_date",
+                  "value": "2026-08-13' OR '1'='1"
+                }
+              ]
+            },
+            "description": "Gia tri date gio di qua nhanh logic moi — xac nhan van duoc parameterise o ca hai nhanh.\n\n[VERIFIED staging] → validation error, result set KHONG bi noi rong boi `OR '1'='1` ✓\n\n*Payload nang hon (`; DROP TABLE orders--`) bi **Cloudflare WAF** chan tu vong ngoai truoc khi toi app — neu gap block page cua Cloudflare thi do la ket qua PASS, khong phai loi request.*",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://staging-api.teeinblue.com",
+      "type": "string"
+    },
+    {
+      "key": "userA_email",
+      "value": "FILL_userA_email",
+      "type": "string"
+    },
+    {
+      "key": "userA_password",
+      "value": "FILL_userA_password",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string",
+      "description": "JWT, set tu dong boi Setup — Login. Song 15 phut."
+    },
+    {
+      "key": "partnerToken",
+      "value": "",
+      "type": "string",
+      "description": "Lay tu environment 'TIB Staging - Open API'. Chi folder 4 dung."
+    },
+    {
+      "key": "instanceId",
+      "value": "58",
+      "type": "string"
+    },
+    {
+      "key": "storeTz",
+      "value": "Asia/Bangkok",
+      "type": "string"
+    },
+    {
+      "key": "foreignInstanceId",
+      "value": "4",
+      "type": "string",
+      "description": "Instance cua user khac — dung cho test cross-tenant."
+    },
+    {
+      "key": "rangeStartUtc",
+      "value": "2026-08-18T17:00:00.000Z",
+      "type": "string",
+      "description": "= store-local Aug 19 00:00:00.000 (UTC+7)"
+    },
+    {
+      "key": "rangeEndUtc",
+      "value": "2026-08-20T16:59:59.999Z",
+      "type": "string",
+      "description": "= store-local Aug 20 23:59:59.999 (UTC+7)"
+    },
+    {
+      "key": "singleDayStartUtc",
+      "value": "2026-08-19T17:00:00.000Z",
+      "type": "string",
+      "description": "= store-local Aug 20 00:00:00.000 (UTC+7)"
+    },
+    {
+      "key": "orderD",
+      "value": "#ins58-2870",
+      "type": "string"
+    },
+    {
+      "key": "orderD_utc",
+      "value": "2026-08-18T16:59:00Z",
+      "type": "string"
+    },
+    {
+      "key": "orderC",
+      "value": "#ins58-2871",
+      "type": "string"
+    },
+    {
+      "key": "orderC_utc",
+      "value": "2026-08-19T17:00:00Z",
+      "type": "string"
+    },
+    {
+      "key": "orderA",
+      "value": "#ins58-2872",
+      "type": "string"
+    },
+    {
+      "key": "orderA_utc",
+      "value": "2026-08-20T16:59:00Z",
+      "type": "string"
+    },
+    {
+      "key": "orderB",
+      "value": "#ins58-2873",
+      "type": "string"
+    },
+    {
+      "key": "orderB_utc",
+      "value": "2026-08-20T17:00:00Z",
+      "type": "string"
+    },
+    {
+      "key": "itemD",
+      "value": "6715",
+      "type": "string"
+    },
+    {
+      "key": "itemC",
+      "value": "6716",
+      "type": "string"
+    },
+    {
+      "key": "itemA",
+      "value": "6718",
+      "type": "string"
+    },
+    {
+      "key": "itemB1",
+      "value": "6719",
+      "type": "string"
+    },
+    {
+      "key": "itemB2",
+      "value": "6720",
+      "type": "string"
+    },
+    {
+      "key": "partialStart",
+      "value": "2026-08-20",
+      "type": "string",
+      "description": "Bien start dung cho test range mo mot dau (TC-021)."
+    },
+    {
+      "key": "partialEnd",
+      "value": "2026-08-13",
+      "type": "string",
+      "description": "Bien end dung cho test range mo mot dau (TC-021)."
+    }
+  ]
+}

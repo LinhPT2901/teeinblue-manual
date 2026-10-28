@@ -1,0 +1,1581 @@
+{
+  "info": {
+    "name": "Teeinblue Public API - Auto Generated",
+    "description": "Generated from redoc-static.html. Includes bearer token auth, example params/body, and basic Postman tests.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{api_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://api.teeinblue.com/openapi/v1"
+    },
+    {
+      "key": "api_token",
+      "value": "{{api_token}}"
+    },
+    {
+      "key": "order_id",
+      "value": "12345"
+    },
+    {
+      "key": "platform_order_id",
+      "value": "4567890123"
+    },
+    {
+      "key": "etsy_order_id",
+      "value": "1234567890"
+    },
+    {
+      "key": "platform_domain",
+      "value": "my-shop.myshopify.com"
+    },
+    {
+      "key": "campaign_uuid",
+      "value": "6d823e4d-8f21-41f8-b461-e97c981880bc"
+    },
+    {
+      "key": "customization_uuid",
+      "value": "6d823e4d-8f21-41f8-b461-e97c981880bc"
+    },
+    {
+      "key": "product_base_id",
+      "value": "1245"
+    },
+    {
+      "key": "platform_base_id",
+      "value": "1245"
+    },
+    {
+      "key": "product_id",
+      "value": "1245"
+    },
+    {
+      "key": "resource_id",
+      "value": "1245"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "GET /health - Health check",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Health check"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"Health status is ok\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.status).to.eql(\"ok\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /version - API version",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/version",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "version"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "API version"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  pm.test(\"Version field exists\", function () {",
+                  "    const jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.version).to.be.a(\"string\");",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "GET /orders - List orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "ORDER-123",
+                  "description": "Search orders by order name (fuzzy search). Searches through the order's display name/reference.\nUseful for finding orders by customer reference numbers or partial name matches.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at",
+                  "description": "Field to sort the results by. Determines the primary ordering of returned orders.\nMost commonly used fields: `created_at` for chronological order, `total_price` for value-based sorting.\nDefault is `created_at` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_type",
+                  "value": "desc",
+                  "description": "Sort direction for the specified sort field. Use `desc` for newest/highest first,\n`asc` for oldest/lowest first. When sorting by `created_at`, `desc` shows most recent orders first.\nDefault is `desc` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "25",
+                  "description": "Number of orders to return per page using cursor-based pagination.\nHigher values reduce API calls but increase response size and processing time.\nRecommended range: 10-100 for most use cases. Maximum allowed: 500.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2025-01-01T00:00:00Z",
+                  "description": "Filter orders created on or after this date (inclusive). Must be a valid ISO 8601 datetime string.\nUsed with `end_date` to create date ranges. Timezone should be UTC (Z suffix) or include offset.\nUseful for retrieving orders from specific time periods or recent orders since last sync.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-01-31T23:59:59Z",
+                  "description": "Filter orders created on or before this date (inclusive). Must be a valid ISO 8601 datetime string.\nUsed with `start_date` to create date ranges. Should be later than start_date if both are provided.\nTimezone should be UTC (Z suffix) or include offset for consistency.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "created",
+                  "description": "Filter by internal Teeinblue order processing status. Represents the lifecycle of order customization:\n- `created`: Order received, not yet processed\n- `email_sent`: Notification sent to customer\n- `partial_customized`: Some items customized, others pending\n- `customized`: All customization completed, ready for fulfillment\n",
+                  "disabled": true
+                },
+                {
+                  "key": "tib_status",
+                  "value": "1",
+                  "description": "Filter by internal Teeinblue order processing status. Represents the lifecycle of order customization:\n- `1`: Awaiting customization\n- `2`: Generating\n- `3`: Partially generating\n- `4`: Paused\n- `5`: Partially paused\n- `6`: Ready\n- `7`: Partially ready\n- `8`: Sending\n- `9`: Partially sending\n- `10`: Sent\n- `11`: Partially sent\n- `12`: Fulfilled\n- `13`: Partially fulfilled\n- `14`: Error\n- `15`: Partially error\n- `16`: Cancelled\n- `17`: Missing customization\n",
+                  "disabled": true
+                },
+                {
+                  "key": "fulfillment_status",
+                  "value": "fulfilled",
+                  "description": "Filter by physical fulfillment status. Controls which orders are returned based on shipping/delivery state:\n- `fulfilled`: All items shipped and delivered\n- `partial`: Some items fulfilled, others pending\n- `cancelled`: Fulfillment cancelled (e.g., by customer request)\n- `not_eligible`: Items cannot be fulfilled (e.g., discontinued products)\n- `restocked`: Items returned to inventory\n- `null`: Orders not yet sent for fulfillment (pending or in processing)\n",
+                  "disabled": true
+                },
+                {
+                  "key": "financial_status",
+                  "value": "paid",
+                  "description": "Filter by payment status. Essential for determining which orders are paid and ready for processing:\n- `pending`: Payment not yet processed\n- `authorized`: Payment method verified but not captured\n- `partially_paid`: Partial payment received (layaway/installments)\n- `paid`: Full payment received and confirmed\n- `partially_refunded`: Some money returned to customer\n- `refunded`: Full refund issued\n- `voided`: Payment cancelled before capture\n- `cancelled`: Order payment cancelled\n",
+                  "disabled": true
+                },
+                {
+                  "key": "test",
+                  "value": "0",
+                  "description": "Filter test/sandbox orders. Test orders are created during development, store setup, or payment testing.\n- `\"1\"`: Include ONLY test orders (for development/testing)\n- `\"0\"`: Include ONLY live orders (production data)\n- omit parameter: Include ONLY live orders (default behavior)\nNote: Most production integrations should use `\"0\"` or omit this parameter entirely.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "by_teeinblue",
+                  "value": "1",
+                  "description": "Filter orders by their creation source. Determines whether orders were placed through Teeinblue or external platforms:\n- `\"1\"`: Orders created directly through Teeinblue platform\n- `\"0\"`: Orders synced from external platforms (Shopify, Etsy, etc.)\n- omit parameter: Include orders from all sources\nUseful for separating direct sales from platform marketplace sales.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0xNSAxMDozMDowMCIsImlkIjoxMjM0NX0",
+                  "description": "Pagination cursor for retrieving the next set of results. This is an opaque string\nreturned in the `meta.next_cursor` field of the previous response. Do not manually construct\ncursor values - always use the exact string provided by the API. For first page requests,\nomit this parameter entirely.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "platform",
+                  "value": "etsy",
+                  "description": "Filter orders by the e-commerce platform they originated from. Useful for integrations\nthat need to separate orders by sales channel. Common platforms include:\n- `etsy`: Etsy marketplace orders\n- `shopify`: Shopify store orders\n- `woocommerce`: WooCommerce store orders\nNote: This parameter is automatically set for platform-specific endpoints like `/orders/etsy`.\n",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "Returns a cursor-paginated list of orders visible to the authenticated user.\nThis endpoint requires a token with the **orders:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (Array.isArray(jsonData.data) && jsonData.data.length > 0) {",
+                  "    const first = jsonData.data[0];",
+                  "    if (first.id) pm.collectionVariables.set(\"order_id\", String(first.id));",
+                  "    if (first.platform_order_id) pm.collectionVariables.set(\"platform_order_id\", String(first.platform_order_id));",
+                  "    if (first.platform_domain) pm.collectionVariables.set(\"platform_domain\", String(first.platform_domain));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /orders/{orderId} - Get order by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/:orderId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                ":orderId"
+              ],
+              "query": [
+                {
+                  "key": "include_customization",
+                  "value": "true",
+                  "description": "Include customization data and customer uploads in the response",
+                  "disabled": true
+                }
+              ],
+              "variable": [
+                {
+                  "key": "orderId",
+                  "value": "{{order_id}}"
+                }
+              ]
+            },
+            "description": "Fetch a single order by **internal order ID** or **platform-specific ID**.\nRequires **orders:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /orders/etsy - List Etsy orders",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/etsy",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "etsy"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "ORDER-123",
+                  "description": "Search orders by order name (fuzzy search). Searches through the order's display name/reference.\nUseful for finding orders by customer reference numbers or partial name matches.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at",
+                  "description": "Field to sort the results by. Determines the primary ordering of returned orders.\nMost commonly used fields: `created_at` for chronological order, `total_price` for value-based sorting.\nDefault is `created_at` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_type",
+                  "value": "desc",
+                  "description": "Sort direction for the specified sort field. Use `desc` for newest/highest first,\n`asc` for oldest/lowest first. When sorting by `created_at`, `desc` shows most recent orders first.\nDefault is `desc` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "25",
+                  "description": "Number of orders to return per page using cursor-based pagination.\nHigher values reduce API calls but increase response size and processing time.\nRecommended range: 10-100 for most use cases. Maximum allowed: 500.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2025-01-01T00:00:00Z",
+                  "description": "Filter orders created on or after this date (inclusive). Must be a valid ISO 8601 datetime string.\nUsed with `end_date` to create date ranges. Timezone should be UTC (Z suffix) or include offset.\nUseful for retrieving orders from specific time periods or recent orders since last sync.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-01-31T23:59:59Z",
+                  "description": "Filter orders created on or before this date (inclusive). Must be a valid ISO 8601 datetime string.\nUsed with `start_date` to create date ranges. Should be later than start_date if both are provided.\nTimezone should be UTC (Z suffix) or include offset for consistency.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "created",
+                  "description": "Filter by internal Teeinblue order processing status. Represents the lifecycle of order customization:\n- `created`: Order received, not yet processed\n- `email_sent`: Notification sent to customer\n- `partial_customized`: Some items customized, others pending\n- `customized`: All customization completed, ready for fulfillment\n",
+                  "disabled": true
+                },
+                {
+                  "key": "tib_status",
+                  "value": "1",
+                  "description": "Filter by internal Teeinblue order processing status. Represents the lifecycle of order customization:\n- `1`: Awaiting customization\n- `2`: Generating\n- `3`: Partially generating\n- `4`: Paused\n- `5`: Partially paused\n- `6`: Ready\n- `7`: Partially ready\n- `8`: Sending\n- `9`: Partially sending\n- `10`: Sent\n- `11`: Partially sent\n- `12`: Fulfilled\n- `13`: Partially fulfilled\n- `14`: Error\n- `15`: Partially error\n- `16`: Cancelled\n- `17`: Missing customization\n",
+                  "disabled": true
+                },
+                {
+                  "key": "fulfillment_status",
+                  "value": "fulfilled",
+                  "description": "Filter by physical fulfillment status. Controls which orders are returned based on shipping/delivery state:\n- `fulfilled`: All items shipped and delivered\n- `partial`: Some items fulfilled, others pending\n- `cancelled`: Fulfillment cancelled (e.g., by customer request)\n- `not_eligible`: Items cannot be fulfilled (e.g., discontinued products)\n- `restocked`: Items returned to inventory\n- `null`: Orders not yet sent for fulfillment (pending or in processing)\n",
+                  "disabled": true
+                },
+                {
+                  "key": "financial_status",
+                  "value": "paid",
+                  "description": "Filter by payment status. Essential for determining which orders are paid and ready for processing:\n- `pending`: Payment not yet processed\n- `authorized`: Payment method verified but not captured\n- `partially_paid`: Partial payment received (layaway/installments)\n- `paid`: Full payment received and confirmed\n- `partially_refunded`: Some money returned to customer\n- `refunded`: Full refund issued\n- `voided`: Payment cancelled before capture\n- `cancelled`: Order payment cancelled\n",
+                  "disabled": true
+                },
+                {
+                  "key": "test",
+                  "value": "0",
+                  "description": "Filter test/sandbox orders. Test orders are created during development, store setup, or payment testing.\n- `\"1\"`: Include ONLY test orders (for development/testing)\n- `\"0\"`: Include ONLY live orders (production data)\n- omit parameter: Include ONLY live orders (default behavior)\nNote: Most production integrations should use `\"0\"` or omit this parameter entirely.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "by_teeinblue",
+                  "value": "1",
+                  "description": "Filter orders by their creation source. Determines whether orders were placed through Teeinblue or external platforms:\n- `\"1\"`: Orders created directly through Teeinblue platform\n- `\"0\"`: Orders synced from external platforms (Shopify, Etsy, etc.)\n- omit parameter: Include orders from all sources\nUseful for separating direct sales from platform marketplace sales.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0xNSAxMDozMDowMCIsImlkIjoxMjM0NX0",
+                  "description": "Pagination cursor for retrieving the next set of results. This is an opaque string\nreturned in the `meta.next_cursor` field of the previous response. Do not manually construct\ncursor values - always use the exact string provided by the API. For first page requests,\nomit this parameter entirely.\n",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "Convenience wrapper for **/orders** that implicitly filters `platform=etsy`.\nRequires **orders:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (Array.isArray(jsonData.data) && jsonData.data.length > 0) {",
+                  "    const first = jsonData.data[0];",
+                  "    if (first.platform_order_id) pm.collectionVariables.set(\"etsy_order_id\", String(first.platform_order_id));",
+                  "    else if (first.id) pm.collectionVariables.set(\"etsy_order_id\", String(first.id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /orders/etsy/{etsyId} - Get Etsy order by order ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/etsy/:etsyId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "etsy",
+                ":etsyId"
+              ],
+              "query": [
+                {
+                  "key": "include_customization",
+                  "value": "true",
+                  "description": "Include customization data and customer uploads in the response",
+                  "disabled": true
+                }
+              ],
+              "variable": [
+                {
+                  "key": "etsyId",
+                  "value": "{{etsy_order_id}}"
+                }
+              ]
+            },
+            "description": "Fetch a single Etsy order by its Etsy order ID.\nRequires **orders:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "PATCH /orders/etsy/{etsyId} - Update Etsy order",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/etsy/:etsyId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "etsy",
+                ":etsyId"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "etsyId",
+                  "value": "{{etsy_order_id}}"
+                }
+              ]
+            },
+            "description": "Update a single Etsy order by its Etsy order ID.\nRequires **orders:write** ability.\n",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fulfillment_shipping_method\": \"Standard Shipping\",\n  \"note\": \"This is a test note\",\n  \"email\": \"jane.doe@example.com\",\n  \"contact_email\": \"jane.doe@example.com\",\n  \"shipping_address\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "PATCH /orders/etsy/batch-update - Batch update Etsy orders",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/orders/etsy/batch-update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "orders",
+                "etsy",
+                "batch-update"
+              ],
+              "query": [],
+              "variable": []
+            },
+            "description": "Batch update Etsy orders by their Etsy order IDs.\nRequires **orders:write** ability.\n",
+            "body": {
+              "mode": "raw",
+              "raw": "[\n  null\n]",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /stores/{platformDomain}/orders - List orders for specific store",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/stores/:platformDomain/orders",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "stores",
+                ":platformDomain",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "ORDER-123",
+                  "description": "Search orders by order name (fuzzy search). Searches through the order's display name/reference.\nUseful for finding orders by customer reference numbers or partial name matches.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at",
+                  "description": "Field to sort the results by. Determines the primary ordering of returned orders.\nMost commonly used fields: `created_at` for chronological order, `total_price` for value-based sorting.\nDefault is `created_at` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_type",
+                  "value": "desc",
+                  "description": "Sort direction for the specified sort field. Use `desc` for newest/highest first,\n`asc` for oldest/lowest first. When sorting by `created_at`, `desc` shows most recent orders first.\nDefault is `desc` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "25",
+                  "description": "Number of orders to return per page using cursor-based pagination.\nHigher values reduce API calls but increase response size and processing time.\nRecommended range: 10-100 for most use cases. Maximum allowed: 500.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "start_date",
+                  "value": "2025-01-01T00:00:00Z",
+                  "description": "Filter orders created on or after this date (inclusive). Must be a valid ISO 8601 datetime string.\nUsed with `end_date` to create date ranges. Timezone should be UTC (Z suffix) or include offset.\nUseful for retrieving orders from specific time periods or recent orders since last sync.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "end_date",
+                  "value": "2025-01-31T23:59:59Z",
+                  "description": "Filter orders created on or before this date (inclusive). Must be a valid ISO 8601 datetime string.\nUsed with `start_date` to create date ranges. Should be later than start_date if both are provided.\nTimezone should be UTC (Z suffix) or include offset for consistency.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "created",
+                  "description": "Filter by internal Teeinblue order processing status. Represents the lifecycle of order customization:\n- `created`: Order received, not yet processed\n- `email_sent`: Notification sent to customer\n- `partial_customized`: Some items customized, others pending\n- `customized`: All customization completed, ready for fulfillment\n",
+                  "disabled": true
+                },
+                {
+                  "key": "tib_status",
+                  "value": "1",
+                  "description": "Filter by internal Teeinblue order processing status. Represents the lifecycle of order customization:\n- `1`: Awaiting customization\n- `2`: Generating\n- `3`: Partially generating\n- `4`: Paused\n- `5`: Partially paused\n- `6`: Ready\n- `7`: Partially ready\n- `8`: Sending\n- `9`: Partially sending\n- `10`: Sent\n- `11`: Partially sent\n- `12`: Fulfilled\n- `13`: Partially fulfilled\n- `14`: Error\n- `15`: Partially error\n- `16`: Cancelled\n- `17`: Missing customization\n",
+                  "disabled": true
+                },
+                {
+                  "key": "fulfillment_status",
+                  "value": "fulfilled",
+                  "description": "Filter by physical fulfillment status. Controls which orders are returned based on shipping/delivery state:\n- `fulfilled`: All items shipped and delivered\n- `partial`: Some items fulfilled, others pending\n- `cancelled`: Fulfillment cancelled (e.g., by customer request)\n- `not_eligible`: Items cannot be fulfilled (e.g., discontinued products)\n- `restocked`: Items returned to inventory\n- `null`: Orders not yet sent for fulfillment (pending or in processing)\n",
+                  "disabled": true
+                },
+                {
+                  "key": "financial_status",
+                  "value": "paid",
+                  "description": "Filter by payment status. Essential for determining which orders are paid and ready for processing:\n- `pending`: Payment not yet processed\n- `authorized`: Payment method verified but not captured\n- `partially_paid`: Partial payment received (layaway/installments)\n- `paid`: Full payment received and confirmed\n- `partially_refunded`: Some money returned to customer\n- `refunded`: Full refund issued\n- `voided`: Payment cancelled before capture\n- `cancelled`: Order payment cancelled\n",
+                  "disabled": true
+                },
+                {
+                  "key": "test",
+                  "value": "0",
+                  "description": "Filter test/sandbox orders. Test orders are created during development, store setup, or payment testing.\n- `\"1\"`: Include ONLY test orders (for development/testing)\n- `\"0\"`: Include ONLY live orders (production data)\n- omit parameter: Include ONLY live orders (default behavior)\nNote: Most production integrations should use `\"0\"` or omit this parameter entirely.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "by_teeinblue",
+                  "value": "1",
+                  "description": "Filter orders by their creation source. Determines whether orders were placed through Teeinblue or external platforms:\n- `\"1\"`: Orders created directly through Teeinblue platform\n- `\"0\"`: Orders synced from external platforms (Shopify, Etsy, etc.)\n- omit parameter: Include orders from all sources\nUseful for separating direct sales from platform marketplace sales.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0xNSAxMDozMDowMCIsImlkIjoxMjM0NX0",
+                  "description": "Pagination cursor for retrieving the next set of results. This is an opaque string\nreturned in the `meta.next_cursor` field of the previous response. Do not manually construct\ncursor values - always use the exact string provided by the API. For first page requests,\nomit this parameter entirely.\n",
+                  "disabled": true
+                }
+              ],
+              "variable": [
+                {
+                  "key": "platformDomain",
+                  "value": "{{platform_domain}}"
+                }
+              ]
+            },
+            "description": "Returns orders for a specific store identified by platform domain.\nRequires **orders:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (Array.isArray(jsonData.data) && jsonData.data.length > 0) {",
+                  "    const first = jsonData.data[0];",
+                  "    if (first.id) pm.collectionVariables.set(\"store_order_id\", String(first.id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Campaigns",
+      "item": [
+        {
+          "name": "GET /campaigns/{campaignId} - Get campaign by UUID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/campaigns/:campaignId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "campaigns",
+                ":campaignId"
+              ],
+              "query": [
+                {
+                  "key": "shop",
+                  "value": "my-shop.myshopify.com",
+                  "description": "The platform domain of the shop\n",
+                  "disabled": false
+                }
+              ],
+              "variable": [
+                {
+                  "key": "campaignId",
+                  "value": "{{campaign_uuid}}"
+                }
+              ]
+            },
+            "description": "Fetch a single campaign by **UUID** and **platformDomain**.\nRequires **campaigns:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (jsonData.uuid) pm.collectionVariables.set(\"campaign_uuid\", String(jsonData.uuid));",
+                  "  if (jsonData.platform_domain) pm.collectionVariables.set(\"platform_domain\", String(jsonData.platform_domain));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /campaigns/product-base - List product base campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/campaigns/product-base",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "campaigns",
+                "product-base"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "ORDER-123",
+                  "description": "Search orders by order name (fuzzy search). Searches through the order's display name/reference.\nUseful for finding orders by customer reference numbers or partial name matches.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at",
+                  "description": "Field to sort the results by. Determines the primary ordering of returned orders.\nMost commonly used fields: `created_at` for chronological order, `total_price` for value-based sorting.\nDefault is `created_at` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_type",
+                  "value": "desc",
+                  "description": "Sort direction for the specified sort field. Use `desc` for newest/highest first,\n`asc` for oldest/lowest first. When sorting by `created_at`, `desc` shows most recent orders first.\nDefault is `desc` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "25",
+                  "description": "Number of orders to return per page using cursor-based pagination.\nHigher values reduce API calls but increase response size and processing time.\nRecommended range: 10-100 for most use cases. Maximum allowed: 500.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0xNSAxMDozMDowMCIsImlkIjoxMjM0NX0",
+                  "description": "Pagination cursor for retrieving the next set of results. This is an opaque string\nreturned in the `meta.next_cursor` field of the previous response. Do not manually construct\ncursor values - always use the exact string provided by the API. For first page requests,\nomit this parameter entirely.\n",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "List all product base campaigns.\nRequires **campaigns:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (Array.isArray(jsonData.data) && jsonData.data.length > 0 && jsonData.data[0].id) {",
+                  "    pm.collectionVariables.set(\"product_base_id\", String(jsonData.data[0].id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /campaigns/product-base/{id} - Get a product base campaign by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/campaigns/product-base/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "campaigns",
+                "product-base",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{resource_id}}"
+                }
+              ]
+            },
+            "description": "Fetch a single product base campaign by its ID.\nRequires **campaigns:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /campaigns/platform-base - List platform base campaigns",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/campaigns/platform-base",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "campaigns",
+                "platform-base"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "ORDER-123",
+                  "description": "Search orders by order name (fuzzy search). Searches through the order's display name/reference.\nUseful for finding orders by customer reference numbers or partial name matches.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at",
+                  "description": "Field to sort the results by. Determines the primary ordering of returned orders.\nMost commonly used fields: `created_at` for chronological order, `total_price` for value-based sorting.\nDefault is `created_at` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_type",
+                  "value": "desc",
+                  "description": "Sort direction for the specified sort field. Use `desc` for newest/highest first,\n`asc` for oldest/lowest first. When sorting by `created_at`, `desc` shows most recent orders first.\nDefault is `desc` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "25",
+                  "description": "Number of orders to return per page using cursor-based pagination.\nHigher values reduce API calls but increase response size and processing time.\nRecommended range: 10-100 for most use cases. Maximum allowed: 500.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0xNSAxMDozMDowMCIsImlkIjoxMjM0NX0",
+                  "description": "Pagination cursor for retrieving the next set of results. This is an opaque string\nreturned in the `meta.next_cursor` field of the previous response. Do not manually construct\ncursor values - always use the exact string provided by the API. For first page requests,\nomit this parameter entirely.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "platforms",
+                  "value": "etsy",
+                  "description": "Filter by the platform(s).\n\nNote: This API expects **array query params** in the bracket form:\n- Single value: `platforms[]=etsy`\n- Multiple values: `platforms[]=etsy&platforms[]=shopify`\n\nUsing `platforms=etsy` will result in a validation error.\n\nValid platforms include:\n- `etsy`\n- `shopify`\n- `boundless`\n",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "List all platform base campaigns.\nRequires **campaigns:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (Array.isArray(jsonData.data) && jsonData.data.length > 0) {",
+                  "    const first = jsonData.data[0];",
+                  "    if (first.id) pm.collectionVariables.set(\"platform_base_id\", String(first.id));",
+                  "    if (first.platform_domain) pm.collectionVariables.set(\"platform_domain\", String(first.platform_domain));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /campaigns/platform-base/{id} - Get a platform base campaign by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/campaigns/platform-base/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "campaigns",
+                "platform-base",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{resource_id}}"
+                }
+              ]
+            },
+            "description": "Fetch a single platform base campaign by its ID.\nRequires **campaigns:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Customizations",
+      "item": [
+        {
+          "name": "GET /customizations/{uuid} - Get customization by UUID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/customizations/:uuid",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "customizations",
+                ":uuid"
+              ],
+              "query": [
+                {
+                  "key": "include_designs",
+                  "value": "true",
+                  "description": "Include designs data in the response",
+                  "disabled": true
+                }
+              ],
+              "variable": [
+                {
+                  "key": "uuid",
+                  "value": "{{customization_uuid}}"
+                }
+              ]
+            },
+            "description": "Fetch a single customization by its UUID.\nRequires **customizations:read OR orders:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (jsonData.uuid) pm.collectionVariables.set(\"customization_uuid\", String(jsonData.uuid));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "GET /products - List products",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "s",
+                  "value": "ORDER-123",
+                  "description": "Search orders by order name (fuzzy search). Searches through the order's display name/reference.\nUseful for finding orders by customer reference numbers or partial name matches.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at",
+                  "description": "Field to sort the results by. Determines the primary ordering of returned orders.\nMost commonly used fields: `created_at` for chronological order, `total_price` for value-based sorting.\nDefault is `created_at` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "sort_type",
+                  "value": "desc",
+                  "description": "Sort direction for the specified sort field. Use `desc` for newest/highest first,\n`asc` for oldest/lowest first. When sorting by `created_at`, `desc` shows most recent orders first.\nDefault is `desc` when not specified.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "per_page",
+                  "value": "25",
+                  "description": "Number of orders to return per page using cursor-based pagination.\nHigher values reduce API calls but increase response size and processing time.\nRecommended range: 10-100 for most use cases. Maximum allowed: 500.\n",
+                  "disabled": true
+                },
+                {
+                  "key": "cursor",
+                  "value": "eyJjcmVhdGVkX2F0IjoiMjAyNS0wMS0xNSAxMDozMDowMCIsImlkIjoxMjM0NX0",
+                  "description": "Pagination cursor for retrieving the next set of results. This is an opaque string\nreturned in the `meta.next_cursor` field of the previous response. Do not manually construct\ncursor values - always use the exact string provided by the API. For first page requests,\nomit this parameter entirely.\n",
+                  "disabled": true
+                }
+              ],
+              "variable": []
+            },
+            "description": "List all products.\nRequires **products:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "  const jsonData = pm.response.json();",
+                  "  if (Array.isArray(jsonData.data) && jsonData.data.length > 0 && jsonData.data[0].id) {",
+                  "    pm.collectionVariables.set(\"product_id\", String(jsonData.data[0].id));",
+                  "  }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET /products/{id} - Get product by ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/products/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "products",
+                ":id"
+              ],
+              "query": [],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{resource_id}}"
+                }
+              ]
+            },
+            "description": "Fetch a single product by its ID.\nRequires **products:read** ability.\n"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status code is one of 200\", function () {",
+                  "  pm.expect([\"200\"]).to.include(String(pm.response.code));",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 5000ms\", function () {",
+                  "  pm.expect(pm.response.responseTime).to.be.below(5000);",
+                  "});",
+                  "",
+                  "if (pm.response.code !== 204) {",
+                  "  pm.test(\"Content-Type is JSON\", function () {",
+                  "    pm.expect(pm.response.headers.get(\"Content-Type\") || \"\").to.include(\"application/json\");",
+                  "  });",
+                  "}",
+                  "",
+                  "if (String(pm.response.code) === \"200\" && pm.response.code !== 204) {",
+                  "  let jsonData;",
+                  "  pm.test(\"Response body is valid JSON\", function () {",
+                  "    jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.not.equal(undefined);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    }
+  ]
+}

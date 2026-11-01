@@ -74,6 +74,21 @@ Trước khi chạy, đọc hết test case rồi **lập kế hoạch gom nhóm
 
 > Mục tiêu là ít lần load trang / ít lần checkout nhất có thể, **không phải** gộp bằng cách bỏ bớt bước verify. Mỗi case vẫn phải có bằng chứng riêng của nó — và không bao giờ đánh đổi bằng việc trì hoãn case `High`.
 
+## Chạy nhanh: script trước, click từng bước sau
+
+Mỗi lần gọi tool tốn một vòng model suy nghĩ (~6–12s). Baseline 2026-11-01 cho thấy khoảng 46% thời gian execute là vòng suy nghĩ giữa các lần gọi tool, ~22% là chờ cố định (`waitForTimeout`/`sleep`). Vì vậy:
+
+1. **Case storefront (mở product, điền field, upload, ATC, đọc cart/customization, giả lỗi/throttle) → viết case file và chạy bằng runner**, nhiều case trong **một** lệnh:
+   ```
+   node scripts/tib/run.mjs --key TIB-xxxx [--parallel 3] runs/TIB-xxxx/cases/
+   ```
+   Case file đặt ở `runs/<KEY>/cases/NN-<tc>.mjs`, dùng helper có sẵn (`sf.open/fill/upload/addToCart/cart/storage/previewSvg/bundle`, `api.campaign/customization`, `net.capture/throttle/fail`, `until`, `check`, `shot`). Tài liệu + ví dụ: `scripts/tib/README.md`, `scripts/tib/examples/`. **Không tự viết lại** đoạn mở storefront / qua password / điền field / ATC.
+2. Runner chỉ ghi `pass | fail | error` của từng `check()`. **Agent vẫn tự kết luận** theo Nguyên tắc kết luận và Quy tắc 2 (`error` có thể là lỗi luồng test hoặc lỗi setup/tool — đọc trace/ảnh rồi phân loại), rồi mới `update_test_case`. `check` phải bám đúng expected result của case, không thay bằng điều kiện dễ hơn.
+3. **Không chờ cố định.** Không dùng `waitForTimeout` > 100ms hay `sleep` trong Bash để đợi trạng thái. Chờ đúng điều kiện: `waitForResponse`, `locator.waitFor`, `until(fn)` trong case, `node scripts/tib/poll.mjs` trong shell (thoát ngay khi đạt). Ngoại lệ: 60ms sau khi gõ để qua debounce SDK (đã có trong `sf.fill`).
+4. Throttle / route giả lỗi đặt **trong case file** sống cùng browser context của case và mất khi context đóng ⇒ không cần `R change`/`R restored` cho loại này. Chỉ thay đổi trên server MCP (dùng chung giữa các case) mới phải ghi `R change`.
+5. Dùng MCP Playwright click từng bước khi: luồng portal chưa có helper, cần nhìn UI để hiểu (bước khám phá đầu tiên), case cần profile `playwright` (Shopify admin / 2FA), hoặc runner báo `error` cần điều tra. Khám phá xong mà luồng lặp lại ở nhiều case → chuyển sang case file.
+6. Helper thiếu hoặc sai (selector đổi) → sửa ngay trong `scripts/tib/lib.mjs`, chạy lại `scripts/tib/examples/` để chắc không vỡ chỗ khác, ghi vào báo cáo cuối mục "Đã sửa thư viện script".
+
 ## Gỡ block trước khi đặt blocked
 
 Thử theo thứ tự, ghi cách đã dùng vào `actualResult`:
@@ -168,7 +183,7 @@ Kiểm tự động, chỉ những gì agent không tự làm được mới gom
 | Login portal staging | Server isolated đã có session từ storageState; hết hạn thì `node scripts/make-mcp-storage-state.mjs` (cần restart server, báo coordinator) hoặc login bằng `.env` trên server `playwright` | `/login/two-factor` xuất hiện, hoặc Turnstile interactive |
 | Session Shopify admin (khi case cần) | Mở `admin.shopify.com/store/<store>` trên server `playwright` | Bị đòi login / SSO / 2FA → người dùng login một lần trong cửa sổ Playwright |
 | Storefront mở khoá | Nhập password `oe` | — |
-| **Bundle SDK đang chạy** | So `app-v1.js` của trang với `fetch(url,{cache:'reload'})` (mục 2), ghi `content-length` + `Last-Modified`; có dấu hiệu của bản fix chưa | Bundle chưa có bản fix → hỏi Dev đã deploy chưa (case phụ thuộc chờ) |
+| **Bundle SDK đang chạy** | `sf.bundle(page)` trong case file (so bản trang đã nạp với bản server, trả `Last-Modified`; `{bust:true}` để nạp lại), hoặc cách ở mục 2; có dấu hiệu của bản fix chưa | Bundle chưa có bản fix → hỏi Dev đã deploy chưa (case phụ thuộc chờ) |
 | Config store/account mà case giả định (vd `default_layer_value`, setting store) | Đọc giá trị thật qua API/UI | Case cần config khác và config đó **người dùng tự đổi** (theo memory store-config-change-by-user) |
 | Thay đổi tồn đọng | `R start` → xử lý `pending` | Lock của lượt khác bị ngắt mà không chắc lượt đó đã dừng |
 | Data test | Đọc `runs/<KEY>/data.json` hoặc `runs/<KEY>/ledger.md`, mở từng ID xác minh còn đúng | Data thiếu mà agent không tự dựng được |

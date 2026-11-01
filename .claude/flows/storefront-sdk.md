@@ -2,6 +2,8 @@
 
 Không phải portal — rule khi test SDK trên storefront staging.
 
+**Chạy case storefront bằng `scripts/tib/` (runner + helper, xem `scripts/tib/README.md`)** — các selector/bẫy dưới đây đã nằm trong helper; sửa helper khi UI đổi.
+
 ## Thông tin chung
 
 | Mục | Giá trị |

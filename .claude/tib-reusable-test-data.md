@@ -37,6 +37,9 @@ Khác ledger (`runs/<KEY>/ledger.md` = mọi thứ agent đã TẠO cho từng i
 |---|---|---|---|---|---|
 | platform product 532 (`/platform-products/532/edit`), Shopify product 10489842860348 | Campaign by Shopify product, 2 artwork / 1 variant (Quick Navigation) | staging, instance 58 | 2026-09-30 (TIB-5349) | Có (data QA) | Đã lên Online Store; Quick nav toggle OFF |
 | campaign 3185 (`/campaigns/3185/edit`) | Campaign draft dùng lại khi hết blocker `preview_thumbnail` | staging, instance 58 | 2026-10-23 (TIB-5539) | Có (data QA) | Draft rỗng |
+| storefront v1 `/products/refactor-paragraph` (template select + Song search bắt buộc) | Ví dụ `scripts/tib/examples/` EX-01, EX-04: đổi template, validation thiếu field | staging, instance 58 | 2026-11-01 | Không | Ví dụ phụ thuộc — đổi campaign thì sửa ví dụ |
+| storefront v1 `/products/sdk-fix-preconnect-hints-lighthouse-reports-as-unused` (photo bắt buộc + text `Name`) | Upload + ATC đơn giản; ví dụ EX-02 | staging, instance 58 | 2026-11-01 | Không | ATC tạo customization thật |
+| storefront v1 `/products/tib-5439-fix-ambiguous-order-item-activities-log-for-manual-sent-change-vs-confirm-send` (1 text `Name`, không bắt buộc) | ATC tối giản, giả lỗi mạng; ví dụ EX-03 | staging, instance 58 | 2026-11-01 | Không | — |
 
 ## Đã tìm, chưa có (không phải kết luận vĩnh viễn)
 

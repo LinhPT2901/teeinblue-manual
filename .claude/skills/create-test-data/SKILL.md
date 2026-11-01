@@ -1,6 +1,6 @@
 ---
 name: create-test-data
-description: "Đọc một task test case đã có trên Testlane, suy ra tính năng đó cần TEST DATA gì, rồi tạo data thật: gọi agent `tib-test-data` để dựng campaign/artwork trên staging teeinblue portal, và tạo Postman collection (biến + Bearer auth gắn sẵn từ .env) khi issue nặng về back-end/API. Dùng skill này khi người dùng nói \"tạo test data\", \"setup data cho task này\", \"chuẩn bị data để test\", \"cần data gì cho TIB-xxx\", \"tạo collection Postman cho issue này\", hoặc ngay sau khi vừa sinh test case xong và cần môi trường để chạy. Đây là BƯỚC 3/3 của quy trình QA (1: qa-requirement-analysis → 2: gen-testcase → 3: create-test-data)."
+description: "Đọc một task test case đã có trên Testlane, suy ra tính năng đó cần TEST DATA gì, rồi tạo data thật: gọi agent `tib-test-data` để dựng campaign/artwork trên staging teeinblue portal, và tạo Postman collection (biến + Bearer auth gắn sẵn từ .env) khi issue nặng về back-end/API. Dùng skill này khi người dùng nói \"tạo test data\", \"setup data cho task này\", \"chuẩn bị data để test\", \"cần data gì cho TIB-xxx\", \"tạo collection Postman cho issue này\", hoặc ngay sau khi vừa sinh test case xong và cần môi trường để chạy. Đây là BƯỚC 3 của quy trình QA (1: qa-requirement-analysis → 2: gen-testcase → 3: create-test-data → execute); skill điều phối qa-issue-run gọi skill này và ghi runs/<KEY>/data.json."
 ---
 
 ## Vai trò
@@ -19,6 +19,9 @@ Skill này **không sinh test case** (đó là `gen-testcase`) và **không phâ
 1. `qa-requirement-analysis` → bản Requirement Analysis trong chat.
 2. `gen-testcase` → task + test case trên Testlane.
 3. **`create-test-data`** (skill này) → test data trên staging + Postman collection nếu cần.
+4. Execute (agent `tib-execute-testcase`).
+
+Khi được gọi từ **`qa-issue-run`**: input là `runs/<KEY>/testcases.json` + `analysis.md`; output ghi `runs/<KEY>/data.json` (agent `tib-test-data` ghi phần data portal, skill này thêm phần Postman); **không** chờ duyệt Data Plan (Gate 1 đã qua) trừ khi plan cần tài nguyên dùng chung đang bị giữ.
 
 ## Input cần thu thập
 
@@ -30,6 +33,13 @@ Skill này **không sinh test case** (đó là `gen-testcase`) và **không phâ
 4. Không xác định được task nào → hỏi đúng 1 câu: "Task Testlane nào?"
 
 Chỉ được hỏi **tối đa 1 câu** trước khi bắt đầu. Mọi thứ còn lại tự quyết theo default trong skill này và nêu ở mục Assumptions của báo cáo.
+
+## Nguồn tra trước khi lập plan
+
+- `rules/env-capabilities.md` — store/instance nào cho case nào (Checkout page → linh-tib-checkout Plus; Boundless → 287/561), giới hạn MCP. Case nhãn `env-blocked` thì **không dựng data** cho nó.
+- `.claude/tib-reusable-test-data.md` — data đặc thù có sẵn (account no-Mapbox, onboarding, victim org 94, campaign trạng thái hiếm). Dùng lại trước khi tính tạo mới hay đưa vào Blocked; xác minh trước khi dùng.
+- `runs/<KEY>/ledger.md` — data đã dựng cho issue này ở lượt trước (dùng lại nếu còn đúng).
+- `.claude/tib-operational-lessons.md` — cách phục hồi blocked đã gặp.
 
 ## Quy trình
 
@@ -54,7 +64,7 @@ Quét từng test case, gom lại thành **data requirement**. Nguồn tín hi�
 | "personalization field", "option title" | Layer bật personalization + đúng field |
 | "upload ảnh/vector/PDF/GPX" | File mẫu + campaign có field upload tương ứng |
 | "campaign phức tạp, nhiều layer" | Artwork nhiều layer — ghi rõ số lượng |
-| "2 shop / shop A và shop B" | 2 instance/store — **thường không tự tạo được**, đưa vào mục Blocked |
+| "2 shop / shop A và shop B" | Dùng cặp có sẵn trong catalog (org 64 vs 94, user A/B) — chỉ Blocked khi catalog không có cặp phù hợp |
 | Endpoint, status code, header, payload, `429/401/422` | **Postman** (xem Bước 4) |
 | "branch X, run migrations" | Điều kiện môi trường — chỉ ghi lại, không tự deploy |
 
@@ -77,13 +87,14 @@ Sau đó:
 - **Nếu plan chỉ có 1 campaign + 1 artwork** (trường hợp thường gặp): **gọi agent luôn**, không cần chờ duyệt. Chỉ báo lại plan trong output cuối.
 - **Nếu plan có nhiều hơn 1 campaign, hoặc cần setup phức tạp** (2 instance, artwork 1.0 + 2.0 song song, > 15 layer, cần publish nhiều store): **trình plan ra và chờ người dùng duyệt** trước khi gọi agent.
 
-Gọi agent bằng tool `Agent` với `subagent_type: "tib-test-data"`. Prompt gửi agent phải có đủ:
+Gọi agent bằng tool `Agent` với `subagent_type: "tib-test-data"`. Agent tự chọn đường dựng (staging MCP khi luồng UI không phải thứ đang test; UI khi case cần đúng luồng UI). Prompt gửi agent phải có đủ:
 
 - **Issue key + title nguyên văn** (agent dùng làm tên campaign/artwork và Internal tags — không được để agent tự chế tên).
 - Product base mong muốn (mặc định `example product base - tshirt`).
 - Danh sách layer: loại + config cụ thể (số đo, personalization, option title, font, màu…).
 - Publish hay để draft — **chỉ yêu cầu publish khi có test case cần storefront**.
-- Link tới task Testlane và các test case ID mà data này phục vụ.
+- Link tới task Testlane và các test case ID mà data này phục vụ; với mỗi nhóm case, nói rõ **luồng nào đang được test** (để agent biết chỗ nào được dựng qua MCP, chỗ nào phải đi UI).
+- Server Playwright được dùng (`playwright` / `playwright-2` / `playwright-3`) và run-id cho `scripts/tib_runctl.py` khi chạy song song nhiều issue.
 
 Không tự thao tác Playwright trong skill này — mọi thao tác portal đi qua agent `tib-test-data` để giữ đúng guardrail staging, naming convention và ledger.
 
@@ -170,7 +181,7 @@ Nếu không thoả điều kiện nào → **bỏ qua Postman**, nói rõ trong
 
 - Data UI: tin vào **báo cáo verify của agent** `tib-test-data` (agent tự verify bằng cách mở lại item). Nếu agent báo fail hoặc dở dang → báo fail thẳng, **không** kết luận là đã tạo xong.
 - Postman: đọc lại collection vừa tạo (`mcp__postman__getCollection`) xác nhận đủ folder/request rồi mới báo cáo.
-- Agent `tib-test-data` tự ghi ledger `.claude/tib-test-data-ledger.md`. Skill này **không ghi trùng** vào ledger; chỉ bổ sung dòng cho **collection Postman** nếu người dùng muốn theo dõi chung.
+- Agent `tib-test-data` tự ghi `runs/<KEY>/ledger.md` + `runs/<KEY>/data.json`. Skill này **không ghi trùng** vào ledger; chỉ thêm khối `postman` (collection id, tên biến) vào `data.json`.
 
 ## Guardrails
 
@@ -179,7 +190,7 @@ Nếu không thoả điều kiện nào → **bỏ qua Postman**, nói rõ trong
 - **Token staging lấy từ `.env` được gắn thẳng vào collection** (người dùng xác nhận 2026-10-08: Team Workspace hiện không có member nào khác; nếu có thêm member → hỏi lại trước khi gắn token). Chỉ dùng token **staging**, không bao giờ token production; không đưa password đăng nhập, session cookie hay `POSTMAN_API_KEY` vào Postman; không in giá trị token ra chat.
 - **Không sửa data có sẵn** để "tiện" — luôn tạo mới.
 - **Không tự chạy load test / hammer endpoint** trong lúc setup. Skill này chỉ *tạo* collection để QA chạy tay; việc bắn N request là bước execute, không phải bước setup.
-- **Không bịa data requirement.** Nếu test case không nói rõ cần cấu hình gì, hoặc cần điều kiện skill không dựng được (2 shop khác nhau, proxy/CDN, log server, branch chưa deploy), đưa vào mục **Blocked / cần người khác làm** thay vì tự suy diễn.
+- **Không bịa data requirement.** Test case không nói rõ cấu hình → lấy theo `analysis.md`/rules; vẫn không rõ thì chọn cấu hình tối giản và ghi Assumption. Chỉ đưa vào **Blocked / cần người khác làm** khi đã tra catalog + env-capabilities + lessons mà vẫn không dựng được (proxy/CDN, log server, branch chưa deploy, config server).
 - **Không tạo/sửa issue Jira.** Skill chỉ đọc Jira.
 - Việc deploy branch, chạy migration, đổi config server **không** thuộc skill này — chỉ liệt kê ra như điều kiện tiên quyết.
 
@@ -211,3 +222,7 @@ Những chỗ tự quyết (product base, số layer, để draft hay publish…
 ```
 
 Cuối cùng nhắc người dùng: data đã sẵn sàng cho những test case nào, và test case nào vẫn còn blocked.
+
+## Ghi mốc thời gian (teeinblue)
+
+Khi làm trong repo `teeinblue-manual` và biết issue key: `python3 scripts/issue_timing.py start <KEY> data` trước khi bắt đầu, `... end <KEY> data` khi xong. Gọi từ `qa-issue-run` thì skill điều phối đã ghi, không ghi trùng.

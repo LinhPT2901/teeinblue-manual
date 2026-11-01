@@ -18,3 +18,9 @@ scratchpad/
 *.har
 .DS_Store
 __pycache__/
+
+# state chạy test cục bộ (ledger, timeline, lock) — không đưa lên repo public
+runs/
+.claude/runctl/
+rules/_archive-memory-*/
+.claude/flows/_original-*.md

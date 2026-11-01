@@ -25,7 +25,7 @@ A Jira board is not an issue field. Use the board only to validate that the crea
 
 ## Required tools
 
-Use the Atlassian MCP tools (`mcp__claude_ai_Atlassian__*`) for Jira operations:
+Use the Atlassian MCP tools (`mcp__atlassian__*` in this environment; some environments name them `mcp__claude_ai_Atlassian__*` — use whichever is present) for Jira operations:
 
 1. `getAccessibleAtlassianResources` / `getVisibleJiraProjects` — resolve the Jira cloud site and the `QA` project.
 2. `getJiraProjectIssueTypesMetadata` or `getJiraIssueTypeMetaWithFields` — resolve the `Task` issue type and required fields.

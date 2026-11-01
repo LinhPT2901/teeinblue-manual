@@ -23,7 +23,7 @@ Mục tiêu: người dùng chỉ phải xem **2 lần** — Gate 1 (câu hỏi)
 
 | File | Ai ghi | Nội dung |
 |---|---|---|
-| `state.json` | skill này | `{"key", "title", "phase", "gate1": "auto-pass|waiting|answered", "server", "runId", "updated"}` |
+| `state.json` | skill này | `{"key", "title", "phase", "gate1": "auto-pass|waiting|answered", "server", "runId", "testlane": {"taskId", "taskStatus", "synced"}, "updated"}` |
 | `analysis.md` | qa-requirement-analysis | Bản Requirement Analysis đủ 14 mục |
 | `decisions.md` | qa-requirement-analysis, skill này | Bảng `Q`/`A`: câu hỏi, đề xuất, **câu trả lời** (ai, ngày), case bị ảnh hưởng, đã áp chưa |
 | `testcases.json` | gen-testcase | Task Testlane + mapping case, nhãn, mã `A`/`Q` |
@@ -32,9 +32,13 @@ Mục tiêu: người dùng chỉ phải xem **2 lần** — Gate 1 (câu hỏi)
 | `results.md` | tib-execute-testcase | Báo cáo execute (= Gate 2 của issue) |
 | `timeline.jsonl` | `scripts/issue_timing.py` | Mốc thời gian từng bước làm / chờ (chỉ ghi nối thêm) |
 
-`phase` lần lượt: `init → analyzed → cases-created → gate1 → data-ready → preflight → executing → done`.
+`phase` lần lượt: `init → analyzed → cases-created → gate1 → data-ready → preflight → executing → done → prod-ready → prod-verified | prod-failed`.
 
-**Chạy tiếp khi bị ngắt:** đọc `state.json`, bắt đầu lại từ phase đang dở; file của phase đã xong thì dùng lại, không làm lại. Phase `executing` bị ngắt → lượt mới gọi `R start` sẽ hiện `pending` của lượt cũ; agent execute xử lý theo quy tắc khôi phục.
+**Chạy tiếp khi bị ngắt:** đọc `state.json`, **đối chiếu Testlane trước** (`.claude/testlane-status-sync.md` mục 3), bắt đầu lại từ phase đang dở; file của phase đã xong thì dùng lại, không làm lại. Phase `executing` bị ngắt → lượt mới gọi `R start` sẽ hiện `pending` của lượt cũ; agent execute xử lý theo quy tắc khôi phục.
+
+## Đồng bộ status Testlane (bắt buộc)
+
+Theo `.claude/testlane-status-sync.md`: status task đổi theo mốc (P0/P2 `in-progress` → cuối lượt `waiting-for-dev` hoặc `ready-to-deploy`; không bao giờ tự đặt `done`), status case ghi ngay khi có kết quả, đối chiếu cuối lượt và khi resume, không ghi đè thay đổi tay của người dùng.
 
 ## Ghi mốc thời gian (bắt buộc)
 
@@ -62,6 +66,7 @@ Mỗi bước ghi `start` ngay trước khi bắt đầu và `end` ngay khi xong
 
 ### P0 — Khởi tạo
 - Mỗi key: tạo `runs/<KEY>/` nếu chưa có, đọc title thật từ Jira (`mcp__atlassian__getJiraIssue`, kèm `comment`). Đã có `state.json` → resume.
+- Task Testlane của key đã có sẵn và đang `todo` → đặt `in-progress` (theo file đồng bộ).
 - Nhiều key: xử lý P1–P2 **lần lượt từng issue** (rẻ, cần ngữ cảnh), gom Gate 1 chung, rồi P3–P5 song song theo mục "Song song".
 
 ### P1 — Phân tích
@@ -80,7 +85,7 @@ Gọi skill `gen-testcase` (args: `<KEY> — gọi từ qa-issue-run, input runs
   ### Assumption đang dùng (không cần trả lời nếu đồng ý)
   | Mã | Giả định | Case dựa vào |
   ```
-  `gate1 = waiting`. **Không đứng chờ:** case **không** mang mã `Q` nào đi tiếp P3–P5 bình thường; chỉ case mang mã `Q` chưa trả lời bị giữ lại.
+  `gate1 = waiting`. Mọi case còn lại đều mang mã `Q` → task `waiting-for-dev`; còn case chạy được thì giữ `in-progress`. **Không đứng chờ:** case **không** mang mã `Q` nào đi tiếp P3–P5 bình thường; chỉ case mang mã `Q` chưa trả lời bị giữ lại.
 - **Khi người dùng trả lời** (có thể vào bất kỳ lúc nào): ghi câu trả lời vào `decisions.md`; đáp án khớp đề xuất → bỏ giữ; khác → gọi `gen-testcase` sửa **đúng** các case mang mã đó (update/skipped/thêm lẻ), rồi dựng data + execute bổ sung chỉ cho các case đó. Người dùng phản đối một assumption → xử lý y như câu `Q` sai đề xuất.
 - Không có câu trả lời tới lúc Gate 2 → các case đó để `not-run`, liệt kê ở Gate 2.
 
@@ -96,9 +101,16 @@ Gọi agent `tib-execute-testcase` cho mỗi issue, prompt ghi đủ:
 - **Server Playwright** và **run-id** (`<KEY>-run-NN`) — xem "Song song".
 - Case đang bị giữ chờ câu `Q` → không chạy.
 - Nhắc: evidence ở `evidence/<KEY>/`; không đính ảnh Testlane, không sửa notes task, không comment Jira; không tự tạo bug; không xoá test data; luôn khôi phục thay đổi tạm thời; chỉ dừng cả lượt khi môi trường sai.
-Agent ghi `results.md`. Câu hỏi đổi setup phát sinh giữa chừng → agent đưa lên đầu báo cáo; skill **chuyển ngay** cho người dùng (không đợi các issue khác xong). `phase = done`.
+Agent ghi `results.md`, đối chiếu status case với Testlane và đặt status task cuối lượt (file đồng bộ, mục 1–3). Câu hỏi đổi setup phát sinh giữa chừng → agent đưa lên đầu báo cáo; skill **chuyển ngay** cho người dùng (không đợi các issue khác xong). `phase = done`.
+
+### P6 — Spec production (task vừa `ready-to-deploy`)
+Task kết thúc execute ở `ready-to-deploy` (sau Gate 2 nếu có review render) → gọi agent `tib-prod-verify` chế độ **author** (prompt: key, `runs/<KEY>/`). Agent chọn happy case, viết spec theo object ở `tests/prod/`, dựng fixture, chạy pass trên staging. `phase = prod-ready`. Task `waiting-for-dev` thì chưa làm P6 — làm khi chạy lại và đạt `ready-to-deploy`.
+
+### Sau deploy — verify production (người dùng gọi trong chat)
+Người dùng báo "đã deploy TIB-a, TIB-b" (Dev báo trên Slack) → gọi `tib-prod-verify` chế độ **verify** với **cả danh sách** một lần (runner gộp spec, bỏ trùng, chạy song song). Pass hết → task `done`; còn fail → `waiting-for-dev`. Task chưa có P6 → làm P6 trước (author) rồi verify. `phase = prod-verified` / `prod-failed`.
 
 ### Gate 2 — báo cáo cuối
+Đầu báo cáo mỗi issue có dòng `Testlane: N case khớp, M ghi bù, K giữ theo người dùng; task <id> → <status>`. Người dùng trả lời review render / quyết định case → cập nhật case đó rồi tính lại status task.
 Một tin, gom mọi issue:
 ```
 ## Gate 2 — TIB-xxxx, TIB-yyyy

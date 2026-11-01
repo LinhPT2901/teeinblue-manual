@@ -10,11 +10,21 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-export const API = 'https://staging-api.teeinblue.com';
-export const STORES = { v1: 'linh-tib-staging.myshopify.com', v2: 'linh-tib-checkout.myshopify.com' };
+/** Môi trường đang chạy. Mặc định staging; prod-run.mjs gọi configure() theo tests/prod/env.<env>.json. */
+export const cfg = {
+  env: 'staging',
+  api: 'https://staging-api.teeinblue.com',
+  stores: { v1: 'linh-tib-staging.myshopify.com', v2: 'linh-tib-checkout.myshopify.com' },
+  storePasswordEnv: 'TIB_STORE_PASSWORD',
+  storePasswordDefault: 'oe',
+};
+export function configure(c = {}) {
+  Object.assign(cfg, { ...c, stores: { ...cfg.stores, ...(c.stores || {}) } });
+  return cfg;
+}
 const TEST_DATA = path.join(ROOT, 'test-data');
 const SF_KEYS = ['teeinblue-customizations', 'teeinblue-global-options', 'teeinblue-text-to-image-gen-state'];
-const SDK_RE = /staging-sdk\.teeinblue\.com\/.+\/(app-v\d|index)\.js/;
+const SDK_RE = /(?:staging-)?sdk\.teeinblue\.com\/.+\/(app-v\d|index)\.js/;
 const loadedBundle = new WeakMap(); // page → { src, bytes } của bundle SDK trang đã nạp (ghi trong sf.open)
 
 export function env(key) {
@@ -57,7 +67,7 @@ export function field(page, ref) {
 export const sf = {
   /** Mở product, tự qua password storefront, xoá state SDK (mặc định), chờ widget render. */
   async open(page, { store = 'v1', handle, variant, clearState = true, locale = '' } = {}) {
-    const shop = STORES[store] || store;
+    const shop = cfg.stores[store] || store;
     const url = `https://${shop}${locale ? `/${locale}` : ''}/products/${handle}${variant ? `?variant=${variant}` : ''}`;
     if (!loadedBundle.has(page)) {
       loadedBundle.set(page, null);
@@ -65,7 +75,7 @@ export const sf = {
     }
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     if (page.url().includes('/password')) {
-      await page.locator('input[type="password"]').first().fill(env('TIB_STORE_PASSWORD') || 'oe');
+      await page.locator('input[type="password"]').first().fill(env(cfg.storePasswordEnv) || cfg.storePasswordDefault || '');
       await Promise.all([page.waitForURL(u => !u.pathname.includes('/password')), page.locator('input[type="password"]').first().press('Enter')]);
       await page.goto(url, { waitUntil: 'domcontentloaded' });
     }
@@ -213,8 +223,8 @@ export const api = {
     const res = await fetch(url, { headers: { Accept: 'application/json' }, ...init });
     return { status: res.status, body: await res.json().catch(() => null) };
   },
-  campaign: (shop, shopifyProductId) => api.json(`${API}/api/merchant/campaigns/${shopifyProductId}.json?shop=${STORES[shop] || shop}`),
-  customization: (shop, uuid) => api.json(`${API}/api/merchant/shopify/customization/${uuid}?shop=${STORES[shop] || shop}`),
+  campaign: (shop, shopifyProductId) => api.json(`${cfg.api}/api/merchant/campaigns/${shopifyProductId}.json?shop=${cfg.stores[shop] || shop}`),
+  customization: (shop, uuid) => api.json(`${cfg.api}/api/merchant/shopify/customization/${uuid}?shop=${cfg.stores[shop] || shop}`),
 };
 
 // ---------- Mạng ----------

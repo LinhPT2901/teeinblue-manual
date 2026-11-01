@@ -1,0 +1,232 @@
+{
+  "_doc": "Xem tests/prod/README.md. objects: object_key/feature_key ĐỒNG BỘ từ repo knowledge (scripts/tib/sync_objects.mjs, không sửa tay label/features). Repo này chỉ giữ: affects (đổi object này thì object nào cần regression — bản nháp 2026-11-01, QA chỉnh), fixtures.<env>.<tên> (spec chọn bằng meta.fixture). tasks: task → objects/features (= tag task trên Testlane) + trạng thái.",
+  "knowledge": {
+    "dir": "../context-lifecycle/knowledge/products/teeinblue",
+    "registryStatus": "DRAFT_NEEDS_REVIEW",
+    "registryGeneratedAt": "2026-09-26"
+  },
+  "objects": {
+    "artwork": {
+      "label": "Artwork",
+      "features": [
+        "artwork-list-management",
+        "artwork-save-persist",
+        "artwork-template-management",
+        "clipart-category-storefront-behavior",
+        "condition-cycle-validation",
+        "conditional-setting-config",
+        "editor-layer-workspace",
+        "group-layer-effective-visibility",
+        "group-layer-order-design-render",
+        "layer-common-config",
+        "layer-condition-value-binding",
+        "layer-config-form-elements",
+        "layer-config-image",
+        "layer-config-maps-astronomy",
+        "layer-config-others",
+        "layer-config-puzzles",
+        "layer-config-text",
+        "layer-config-vector",
+        "layer-duplicate-link-copy",
+        "layer-print-effects",
+        "populate-values",
+        "psd-import",
+        "text-color-sequence-render",
+        "text-multi-stroke"
+      ],
+      "affects": [
+        "sdk",
+        "order"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "asset-category": {
+      "label": "Asset Category",
+      "features": [
+        "asset-category-bulk-upload",
+        "asset-category-crud",
+        "asset-category-item-management",
+        "asset-category-route-entity-clarification"
+      ],
+      "affects": [
+        "artwork",
+        "sdk"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "font": {
+      "label": "Font",
+      "features": [
+        "manage-uploaded-font",
+        "upload-custom-font",
+        "use-custom-font-in-artwork-editor",
+        "view-and-configure-font-list"
+      ],
+      "affects": [
+        "artwork",
+        "sdk"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "image-library": {
+      "label": "Image Library",
+      "features": [
+        "image-layer-library",
+        "mockup-layer-library"
+      ],
+      "affects": [
+        "artwork",
+        "product-base",
+        "sdk"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "global-option": {
+      "label": "Global Option",
+      "features": [
+        "artwork-personalization-global-option-link",
+        "global-option-additional-option-items",
+        "global-option-instance-management"
+      ],
+      "affects": [
+        "artwork",
+        "sdk"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "product-base": {
+      "label": "Product Base",
+      "features": [
+        "mockup-attachment",
+        "printarea-definition",
+        "product-base-browse",
+        "product-base-campaign-link",
+        "product-base-create",
+        "product-base-identity",
+        "product-base-lifecycle",
+        "variant-add-to-campaigns",
+        "variant-catalog"
+      ],
+      "affects": [
+        "campaign",
+        "order"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "campaign": {
+      "label": "Campaign",
+      "features": [
+        "campaign-delete",
+        "campaign-list-browse",
+        "campaign-navigation",
+        "campaign-security-permissions",
+        "campaign-shopify-media-sync",
+        "create-campaign-by-product-base",
+        "create-campaign-by-shopify"
+      ],
+      "affects": [
+        "sdk",
+        "order"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "translation": {
+      "label": "Translation",
+      "features": [
+        "dynamic-translations",
+        "language-locale-switcher",
+        "product-page-content-translation"
+      ],
+      "affects": [
+        "sdk"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "sdk": {
+      "label": "SDK / Storefront runtime",
+      "features": [
+        "genai-personalization-runtime",
+        "open-platform-customization-callback",
+        "product-page-settings-config",
+        "storefront-buyer-facing"
+      ],
+      "affects": [
+        "order"
+      ],
+      "fixtures": {
+        "staging": {
+          "upload-atc": {
+            "store": "v1",
+            "handle": "sdk-fix-preconnect-hints-lighthouse-reports-as-unused",
+            "photoField": "933523",
+            "textField": "Name",
+            "photo": "TIB-5526/photo-2mb.jpg"
+          },
+          "required-field": {
+            "store": "v1",
+            "handle": "refactor-paragraph",
+            "requiredField": "423450"
+          }
+        },
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    },
+    "order": {
+      "label": "Order",
+      "features": [
+        "place-personalized-order-storefront",
+        "review-and-initiate-fulfillment-portal"
+      ],
+      "affects": [],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      },
+      "localFeatures": {},
+      "source": "knowledge"
+    }
+  },
+  "tasks": {}
+}

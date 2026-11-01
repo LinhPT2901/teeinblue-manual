@@ -191,7 +191,8 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
      - Ví dụ đúng: `"[TIB-5323] Fix order search date range mismatch between Portal and Backend"`
      - **Không** thêm tiền tố `QA `, không thêm mô tả module, không diễn giải, không nối thêm gì sau title. Copy đúng title gốc.
      - Nếu không có issue Jira (user chỉ mô tả tính năng), dùng tên tính năng đang test, viết ngắn — vẫn không thêm tiền tố `QA `.
-   - `tags`: `["<KEY>"]` + vài tag module/khu vực ngắn nếu hữu ích (ví dụ `["TIB-5323", "Orders", "date-range"]`).
+   - `status`: `in-progress` (đang làm QA). Task đã tồn tại thì không tạo mới; đang `todo` thì `update_task` → `in-progress`. Các mốc status sau đó theo `.claude/testlane-status-sync.md` của repo teeinblue-manual.
+   - `tags`: `["<KEY>"]` + **với teeinblue: đúng các `object_key` và `object_key/feature_key` của các IA trong bản phân tích** (key knowledge hoặc key local đã đăng ký bằng `scripts/tib/sync_objects.mjs`), ví dụ `["TIB-5323", "order", "order/review-and-initiate-fulfillment-portal"]`. Không thêm tag module tự đặt. Sửa lại tag bằng `update_task` (gửi đủ danh sách) khi bản phân tích đổi IA. App khác: `["<KEY>"]` + vài tag module ngắn nếu hữu ích.
    - `notes`: (tùy chọn, HTML) link issue gốc, tóm tắt fix đang test, setup/điều kiện then chốt, phần out-of-scope dev đã nêu.
    - `priority`: **lấy đúng priority của issue Jira gốc**, map sang thang của Testlane (`Low` / `Medium` / `High`):
 

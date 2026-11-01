@@ -24,3 +24,6 @@ runs/
 .claude/runctl/
 rules/_archive-memory-*/
 .claude/flows/_original-*.md
+
+# cấu hình production (store/account) — chỉ ở máy local
+tests/prod/env.production.json

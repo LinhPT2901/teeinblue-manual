@@ -88,3 +88,11 @@ Account / data đặc thù (no-Mapbox, onboarding, victim org 94, staff quyền 
 
 - Quota tạo layer-image theo account (429 kéo dài, ≤ 2 request liên tiếp) — ngưỡng cụ thể chưa rõ (L-001).
 - Upload bị 422 validation có tính vào daily limit hay không — chưa rõ.
+
+## Production — kiểm tra sau deploy
+
+- **Mặc định production chỉ đọc** (probe khi phân tích, xem `qa-requirement-analysis`). **Ngoại lệ duy nhất:** agent `tib-prod-verify` được tạo/sửa data `[QA-PROD]` và chạy happy case tới hết luồng (ATC, checkout, order) trên **store test production** người dùng cấp (người dùng chốt 2026-11-01).
+- Account, store, host: `tests/prod/env.production.json` (chép từ `.example`, không commit) + biến trong `.env` (`TIB_PROD_*`). **Chưa cấp** tính tới 2026-11-01 — host API merchant production chưa xác minh.
+- Checkout trên production chỉ khi store test dùng thanh toán test/bogus/COD; không chắc → hỏi người dùng.
+- Fixture production ghi trong `tests/prod/manifest.json` + catalog (môi trường production), không xoá sau verify.
+

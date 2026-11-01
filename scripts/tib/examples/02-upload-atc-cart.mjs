@@ -1,0 +1,24 @@
+export const meta = { id: 'EX-02', title: 'upload ảnh + ATC + cart + customization API' };
+export default async ({ page, sf, api, net, check, note, shot }) => {
+  const reqs = net.capture(page, /merchant|upload/);
+  await sf.open(page, { handle: 'sdk-fix-preconnect-hints-lighthouse-reports-as-unused' });
+  const fields = await sf.fields(page);
+  note('fields', fields);
+  const up = fields.find(f => f.controls.includes('input:file'));
+  check('có field upload', !!up, up);
+  const u = await sf.upload(page, up.id, 'TIB-5526/photo-2mb.jpg');
+  note('upload', u);
+  check('upload xong không lỗi', u.requests.every(r => r.status < 400), u.requests);
+  for (const f of await sf.fields(page)) if (f.id && f.id !== up.id && f.controls.some(c => /text/.test(c))) await sf.fill(page, f.id, 'QA');
+  const atc = await sf.addToCart(page);
+  note('atc', atc);
+  check('ATC: customization 201 + cart/add ok', atc.ok, atc.customization?.status);
+  const cart = await sf.cart(page);
+  const line = cart.items.at(-1);
+  check('cart có _customization_id', !!line?.properties?._customization_id, line?.properties);
+  const uuid = line?.properties?._customization_id;
+  const g = await api.customization('v1', uuid);
+  check('GET customization 200', g.status === 200, g.status);
+  note('requests', reqs.map(r => `${r.method} ${r.url.replace(/^https:\/\/[^/]+/, '')} ${r.status} ${r.ms}ms`));
+  await shot('after-atc');
+};

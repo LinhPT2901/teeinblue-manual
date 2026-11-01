@@ -1,6 +1,6 @@
 ---
 name: gen-testcase
-description: "Sinh test case từ mô tả tính năng, user story, hoặc checklist kiểm thử và tạo thẳng lên Testlane (Project → Task → Test Case; task lấy đúng title issue Jira gốc kèm key), map đúng các field. Dùng skill này bất cứ khi nào người dùng nhắc đến \"tạo test case\", \"viết test cho [tính năng]\", \"test plan\", \"kiểm thử [module]\", hoặc cần bao phủ một flow trong các Qikify apps (Custom Product Options, Slide Cart Drawer, Checkout Customizer, Duos B2B) và teeinblue. Luôn dùng skill này khi đầu vào là Jira issue, mô tả tính năng, hoặc yêu cầu kiểm thử — dù người dùng không nói rõ \"test case\"."
+description: "Sinh test case bám scope (mỗi case truy về một business rule / impacted area / rủi ro trong bản phân tích, không case ngoài scope; gắn nhãn expected-unconfirmed / env-blocked và mã assumption) từ bản Requirement Analysis, mô tả tính năng, user story, hoặc checklist kiểm thử và tạo thẳng lên Testlane (Project → Task → Test Case; task lấy đúng title issue Jira gốc kèm key), map đúng các field. Dùng skill này bất cứ khi nào người dùng nhắc đến \"tạo test case\", \"viết test cho [tính năng]\", \"test plan\", \"kiểm thử [module]\", hoặc cần bao phủ một flow trong các Qikify apps (Custom Product Options, Slide Cart Drawer, Checkout Customizer, Duos B2B) và teeinblue. Luôn dùng skill này khi đầu vào là Jira issue, mô tả tính năng, hoặc yêu cầu kiểm thử — dù người dùng không nói rõ \"test case\"."
 ---
 
 ## Giới thiệu
@@ -10,43 +10,62 @@ Nhiệm vụ của bạn là tạo ra các test case thủ công chất lượng
 
 ## Mục tiêu
 
-Sinh test case đầy đủ (happy path, negative, edge case khi cần) và **tạo thẳng lên Testlane**. **Không** push Google Sheets, **không** chạy `push_to_sheets.py`/`generate_xlsx.py`, **không** tạo file `.xlsx`/`.json` trong project. Kết quả cuối cùng là một **test feature + task + các test case** trên Testlane.
+Sinh test case **bám đúng scope** của bản phân tích, rồi **tạo thẳng lên Testlane**. Không có trần số lượng: số case do số mục trong scope quyết định. Nhưng **mỗi case phải truy được về một mục scope** (`BR`, `IA`, hoặc rủi ro trong Risks); case không truy được là case lan man → không sinh. Testlane không xoá được case nên case ngoài scope là nợ.
+
+**Không** push Google Sheets, **không** chạy `push_to_sheets.py`/`generate_xlsx.py`, **không** tạo file `.xlsx`. Ngoại lệ duy nhất về file: khi được gọi từ `qa-issue-run`, ghi `runs/<KEY>/testcases.json` (xem cuối file). Kết quả cuối cùng là **task + các test case** trên Testlane.
 
 ## Thông tin cần thu thập
 
-Nếu người dùng chưa cung cấp, hỏi tối đa 2 câu để xác định:
-1. **Module / tính năng cụ thể** cần test (ví dụ: "File Upload trong Custom Product Options", "Free Gift trong Slide Cart")
-2. **Phạm vi**: chỉ happy path, hay bao gồm cả negative/edge case?
+Input chính là **bản Requirement Analysis** (skill `qa-requirement-analysis`, hoặc `runs/<KEY>/analysis.md` + `decisions.md` khi chạy qua `qa-issue-run`): business rule, Self-resolved, Assumptions (`A1`…), Blocking Questions (`Q1`…), Environment Limits, Risks.
 
-Nếu đã rõ từ context (ví dụ: user paste Jira issue), không cần hỏi thêm — tự suy luận và bắt đầu.
+Chưa có bản phân tích mà chỉ có Jira issue → đọc issue và tự xác định phạm vi; chỉ hỏi (tối đa 1 câu) khi không xác định được **module/tính năng** cần test. Không hỏi "phạm vi happy path hay negative" — phạm vi do business rule và rủi ro quyết định.
+
+Với teeinblue (repo `teeinblue-manual`): đọc `rules/env-capabilities.md` (gắn nhãn `env-blocked` / vế không kiểm được) và `rules/tib-product-behaviors.md` (hành vi đã xác nhận, dùng làm nguồn expected).
 
 ## Quy tắc tạo test case (AI Guardrails)
 
 - Chỉ tạo test case dựa trên yêu cầu/business rule đã xác nhận trong input. Không tự bịa hành vi mong đợi.
-- Nếu input không đủ rõ để xác định Expected Result, hoặc case đó không có trong requirement gốc (case do QA/AI đề xuất thêm để tăng coverage), đánh dấu `PO/DEV confirm` ở field **Notes** (sẽ được nối vào cuối `expectedResult` khi tạo trên Testlane — xem mục Map field).
+- Expected Result phải truy được về nguồn (ticket/comment, rules/, câu trả lời PO/Dev). Không truy được, hoặc case do QA/AI đề xuất thêm ngoài requirement → gắn nhãn **`expected-unconfirmed`** (xem mục "Nhãn trạng thái case").
 - Không tự giả định hành vi mặc định của Shopify, Polaris, trình duyệt, API, hoặc database trừ khi được nêu rõ trong input.
 - Không dùng dữ liệu nhạy cảm (token, mật khẩu, dữ liệu khách hàng thật, private key, production credentials).
 - Ưu tiên chất lượng và độ bao phủ hơn số lượng — tránh case trùng lặp hoặc giá trị thấp.
 - **Test Case ID nội bộ** dùng để đánh số/đối chiếu: `TC-[PREFIX]-[3 chữ số]`, **luôn bắt đầu từ 001** và tăng dần trong mỗi lần sinh. Đánh số **sau khi đã sắp xếp lô theo priority** — xem mục "Thứ tự test case". ID này đặt ở đầu `title` của test case Testlane cho dễ trace. (Testlane cũng tự sinh id riêng theo project key — đó là chuyện của Testlane, không cần khớp với ID nội bộ.)
 
-## Loại test case cần bao phủ
+## Chọn case: bám scope, không lan man
 
-Với mỗi tính năng, bao phủ đủ 8 loại sau khi có thể áp dụng được (không phải tính năng nào cũng cần đủ cả 8 — bỏ qua loại nào không liên quan, không cố ép đủ số lượng):
+**Quy tắc truy vết (bắt buộc):** mỗi case có field **Scope ref** = mã mục trong bản phân tích mà nó kiểm (`BR2`, `IA1`, `Risk: IDOR`…). Trước khi tạo lô, rà từng case:
+- Không gắn được Scope ref → **bỏ**.
+- Kiểm hành vi nằm ở mục **Out of Scope** của bản phân tích → **bỏ**, kể cả khi Dev gợi ý regression phần đó.
+- Kiểm hành vi cũ mà thay đổi không chạm tới (không có đường ảnh hưởng trong Impacted Areas) → **bỏ**.
+- Hai case cùng Scope ref và cùng kiểm một điều kiện, chỉ khác dữ liệu không đổi kết quả → **gộp**.
+Báo cáo cuối có bảng **Scope ref → case**, để thấy mục scope nào chưa có case và case nào dày bất thường.
 
-- **Happy path**: luồng thành công tiêu chuẩn
-- **Negative**: đầu vào không hợp lệ, điều kiện không đủ, thao tác sai
-- **Boundary**: giá trị biên (min/max, 0, số lượng giới hạn, độ dài field...)
-- **Validation**: kiểm tra rule validate của field/form (required, format, error message)
-- **Edge**: trạng thái đặc biệt, hiếm gặp (mất kết nối, dữ liệu rỗng, thao tác đồng thời...)
-- **Regression**: các flow/tính năng hiện có có khả năng bị ảnh hưởng bởi thay đổi này
-- **Security**: kiểm tra lỗ hổng bảo mật cơ bản/critical — xem checklist ở mục "Security & Performance coverage" bên dưới
-- **Performance**: kiểm tra hiệu năng dưới tải, dữ liệu lớn, thao tác lặp — xem checklist ở mục "Security & Performance coverage" bên dưới
+Đi từ bản phân tích, không đi từ danh sách loại case:
 
-> Loại test case được gắn nhãn ở đầu **Test Scenario**, ví dụ: "[Boundary] Upload đúng số lượng file tối đa cho phép", "[Regression] Flow checkout không bị ảnh hưởng khi tắt tính năng", "[Security] IDOR: đọc artwork của shop khác qua id", "[Performance] Render 500 layer < 3s".
+1. **Mỗi business rule chính → 1 case happy path** (gộp các rule kiểm được trong cùng một lần chạy).
+2. **Negative / Boundary / Validation** chỉ cho rule có ràng buộc dữ liệu thật (min/max, required, format) mà ticket hoặc rules/ nêu.
+3. **Edge** chỉ khi bản phân tích nêu trạng thái đặc biệt cụ thể.
+4. **Regression** chỉ cho khu vực `IA` ở Impacted Areas (Confirmed hoặc Assumption có căn cứ), mỗi `IA` thường 1 case kiểm đúng đường ảnh hưởng. Không regression rộng "cho chắc".
+5. **Security** chỉ khi mục Risks của bản phân tích có rủi ro bảo mật tương ứng (IDOR, injection, upload, lộ data…), hoặc issue thuộc nhóm security. **Performance** chỉ khi Risks có rủi ro hiệu năng hoặc ticket nêu ngưỡng. Khi đó dùng checklist bên dưới, chỉ lấy mục khớp rủi ro.
+
+Nhãn loại case (tuỳ chọn) đặt ở đầu Test Scenario: `[Happy]`, `[Negative]`, `[Boundary]`, `[Validation]`, `[Edge]`, `[Regression]`, `[Security]`, `[Performance]`.
+
+## Nhãn trạng thái case
+
+Hai nhãn khác nhau, đừng lẫn:
+
+| Nhãn | Nghĩa | Khi execute |
+|---|---|---|
+| **`expected-unconfirmed`** | Expected Result chưa có nguồn xác nhận (suy luận, hành vi hiện tại, case đề xuất thêm) | **Vẫn chạy**, ghi lại hành vi thực tế; không log bug; kết luận chờ PO/Dev |
+| **`env-blocked`** | Cả case không chạy được trên môi trường QA (theo `rules/env-capabilities.md`, vd tracking từ provider) | **Không chạy**. Tạo với `status: skipped`, `actualResult` = lý do + nguồn |
+
+- Case dựa trên assumption hoặc câu hỏi chưa trả lời → thêm mã `A1`/`Q1` vào nhãn (vd `expected-unconfirmed, A2`). Khi PO trả lời, chỉ sửa các case mang mã đó.
+- Chỉ **một vế** của expected không kiểm được trên môi trường QA → **không** gắn `env-blocked`. Bỏ vế đó khỏi expected hoặc ghi `Vế X: skip — <lý do>`, case vẫn chạy.
+- Hạn chế sinh case `env-blocked`: chỉ sinh khi nó là business rule chính cần ghi nhận độ phủ; không thì nêu trong báo cáo là "không test được trên staging" thay vì tạo case.
 
 ## Security & Performance coverage
 
-Với **mọi** tính năng có xử lý input người dùng, gọi API/backend, upload file, render dữ liệu, hoặc có thành phần AI, phải cân nhắc thêm ít nhất vài case Security và Performance. Mục tiêu là **bắt sớm các lỗi bảo mật cơ bản/critical** (đặc biệt các lỗi có thể mất data hoặc lộ data cross-tenant) và các bug hiệu năng dễ tái hiện — không phải làm pentest đầy đủ. Case nào cần điều kiện/công cụ đặc biệt hoặc chưa chắc về expected behavior thì đánh dấu `PO/DEV confirm` ở field Notes. Không thực hiện tấn công thật lên production; mô tả case ở mức QA có thể kiểm chứng an toàn trên Dev/Staging.
+Chỉ dùng khi bản phân tích (mục Risks) nêu rủi ro bảo mật / hiệu năng tương ứng, hoặc issue thuộc nhóm security/performance. Mục tiêu là bắt lỗi bảo mật cơ bản/critical (mất data, lộ data cross-tenant) và bug hiệu năng dễ tái hiện — không phải pentest. Case chưa chắc expected → `expected-unconfirmed`. Không thực hiện tấn công thật lên production; mô tả case ở mức QA có thể kiểm chứng an toàn trên Dev/Staging.
 
 ### Security checklist (chỉ áp dụng case liên quan tới tính năng đang test)
 
@@ -75,13 +94,11 @@ teeinblue có layer AI (ví dụ text-to-image / genai). Với các tính năng 
 - **Mạng chậm / tải nặng**: dưới mạng chậm hoặc nhiều request song song, có loading state đúng, không double-submit, không mất data.
 - **Đồng thời (concurrency)**: nhiều tab/nhiều user thao tác cùng resource → không ghi đè sai, không race condition mất data.
 
-> Nếu requirement gốc không nêu ngưỡng cụ thể (thời gian, giới hạn số lượng), ghi Expected Result theo hướng "trong ngưỡng chấp nhận / không lag / không crash" và đánh dấu `PO/DEV confirm` để PO/Dev chốt con số chính xác.
+> Nếu requirement gốc không nêu ngưỡng cụ thể (thời gian, giới hạn số lượng), ghi Expected Result theo hướng "trong ngưỡng chấp nhận / không lag / không crash" và gắn `expected-unconfirmed` để PO/Dev chốt con số chính xác.
 
 ### Case đề xuất thêm ngoài requirement
 
-Nếu trong lúc bao phủ các loại trên, Claude nhận thấy có case hữu ích nhưng **không được nêu rõ trong requirement/Jira issue gốc** (case do Claude tự đề xuất để tăng coverage), vẫn đưa case đó vào cùng lô test case chính, nhưng:
-- Field **Notes**: ghi `PO/DEV confirm`
-- Có thể ghi thêm lý do ngắn gọn tại sao case này hữu ích, ví dụ: `PO/DEV confirm - chưa có trong AC, đề xuất thêm để tránh regression`
+Chỉ thêm khi case đó gắn với một rủi ro cụ thể trong bản phân tích (có Scope ref). Gắn nhãn `expected-unconfirmed` + lý do ngắn trong Notes, ví dụ: `chưa có trong AC, đề xuất vì rủi ro regression ở <khu vực>`.
 
 ## Các field của một test case (nội bộ, trước khi map lên Testlane)
 
@@ -96,7 +113,9 @@ Sinh mỗi test case dưới dạng các field sau; mục "Map field" bên dư�
 | Preconditions | Dữ liệu/điều kiện setup, viết dạng gạch đầu dòng ngắn gọn. Chỉ thêm môi trường (Dev Store/Staging), theme, app version khi thật sự liên quan — không thêm boilerplate |
 | Steps | Các bước thực hiện, chỉ liệt kê hành động cốt lõi — không diễn giải lý do/ngữ cảnh. Case đơn giản có thể chỉ 1 dòng |
 | Expected Result | Một câu/cụm từ ngắn, cụ thể, verify được ngay — không mô tả lại toàn bộ ngữ cảnh |
-| Notes | Ghi chú thêm nếu có (ví dụ: "Shopify Plus only", "PO/DEV confirm" cho case chưa có trong requirement gốc) |
+| Scope ref | Mã mục scope trong bản phân tích (`BR2`, `IA1`, `Risk: …`). Bắt buộc |
+| Labels | `expected-unconfirmed` / `env-blocked` + mã `A1`/`Q1` nếu có. Để trống nếu case có nguồn đầy đủ và chạy được |
+| Notes | Ghi chú thêm nếu có (ví dụ: "Shopify Plus only", lý do của nhãn, nguồn expected) |
 
 > Không cần các field runtime như Data / Status / Actual Result — Testlane để `status` mặc định `not-run`; kết quả chạy điền sau khi execute.
 
@@ -172,7 +191,8 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
      - Ví dụ đúng: `"[TIB-5323] Fix order search date range mismatch between Portal and Backend"`
      - **Không** thêm tiền tố `QA `, không thêm mô tả module, không diễn giải, không nối thêm gì sau title. Copy đúng title gốc.
      - Nếu không có issue Jira (user chỉ mô tả tính năng), dùng tên tính năng đang test, viết ngắn — vẫn không thêm tiền tố `QA `.
-   - `tags`: `["<KEY>"]` + vài tag module/khu vực ngắn nếu hữu ích (ví dụ `["TIB-5323", "Orders", "date-range"]`).
+   - `status`: `in-progress` (đang làm QA). Task đã tồn tại thì không tạo mới; đang `todo` thì `update_task` → `in-progress`. Các mốc status sau đó theo `.claude/testlane-status-sync.md` của repo teeinblue-manual.
+   - `tags`: `["<KEY>"]` + **với teeinblue: đúng các `object_key` và `object_key/feature_key` của các IA trong bản phân tích** (key knowledge hoặc key local đã đăng ký bằng `scripts/tib/sync_objects.mjs`), ví dụ `["TIB-5323", "order", "order/review-and-initiate-fulfillment-portal"]`. Không thêm tag module tự đặt. Sửa lại tag bằng `update_task` (gửi đủ danh sách) khi bản phân tích đổi IA. App khác: `["<KEY>"]` + vài tag module ngắn nếu hữu ích.
    - `notes`: (tùy chọn, HTML) link issue gốc, tóm tắt fix đang test, setup/điều kiện then chốt, phần out-of-scope dev đã nêu.
    - `priority`: **lấy đúng priority của issue Jira gốc**, map sang thang của Testlane (`Low` / `Medium` / `High`):
 
@@ -194,7 +214,7 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
 `create_test_cases` sinh id Testlane **theo đúng thứ tự các case trong mảng `cases`**, nên thứ tự truyền vào chính là thứ tự hiển thị. Vì vậy phải sắp xếp trước khi gọi:
 
 1. **Sắp theo priority giảm dần**: `High` → `Medium` → `Low`. (Case gán `Critical` đã map thành `High` ở bước map field — gom chung vào nhóm `High`.)
-2. **Trong cùng một mức priority**, giữ thứ tự theo loại case để đọc cho có mạch: Happy path → Negative → Boundary → Validation → Edge → Regression → Security → Performance.
+2. **Trong cùng một mức priority**, giữ thứ tự theo loại case để đọc cho có mạch: Happy → Negative → Boundary → Validation → Edge → Regression → Security → Performance. Case `env-blocked` xếp cuối.
 3. **Đánh số `Test Case ID` sau khi sắp xếp**, bắt đầu từ `001`. Không đánh số trước rồi sắp lại — ID phải chạy liền mạch từ trên xuống.
 
 > Hệ quả: case `High` luôn nằm đầu danh sách và mang số nhỏ nhất, người chạy test biết ngay phải làm gì trước.
@@ -208,16 +228,26 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
 | `steps` | `Preconditions` + `Steps` | HTML. Preconditions để ở đầu (`<p><b>Preconditions:</b> ...</p>`), Steps là `<ol><li>...</li></ol>`. Escape ký tự `<`, `>`, `&` trong nội dung (vd payload XSS) thành `&lt;` `&gt;` `&amp;` |
 | `expectedResult` | `Expected Result` | HTML (`<p>...</p>`) |
 | `priority` | `Priority` | Testlane chỉ có `Low/Medium/High` → **map `Critical` → `High`**; High→High, Medium→Medium, Low→Low |
-| `status` | — | Bỏ qua, để mặc định `not-run` (test case mới sinh chưa chạy) |
+| `status` | `Labels` | Mặc định `not-run`. Case `env-blocked` → `skipped` |
+| `actualResult` | — | Chỉ case `env-blocked`: `<p>env-blocked: <lý do> (nguồn: rules/env-capabilities.md)</p>` |
+| `fields` | `Scope ref`, `Labels` | `[{name: "Scope ref", value: "<p>BR2</p>"}, {name: "Labels", value: "<p>expected-unconfirmed, A2</p>"}]` (Labels chỉ khi có nhãn) |
 
 `Module`, `Notes` không có field riêng trên Testlane:
-- Nếu `Notes` có nội dung (đặc biệt `PO/DEV confirm`), nối vào cuối `expectedResult`: `<p><i>Note: <nội dung notes></i></p>`.
+- Nếu có nhãn hoặc `Notes`, nối vào cuối `expectedResult`: `<p><i>[expected-unconfirmed · A2] Note: <nội dung notes></i></p>` để người chạy thấy ngay (field `Labels` dùng để lọc).
 - `Module` có thể bỏ (đã phản ánh trong task/tags) hoặc đưa vào đầu `title` nếu cần phân biệt.
 - Cần thêm data setup dài (bảng dữ liệu seed, ma trận giá trị) thì dùng `fields` với name `Test data` / `Preconditions` / `Environment` thay vì nhồi hết vào `steps`.
 
 ### Sau khi tạo xong
 
-- Báo cho user: task id + title vừa tạo trên Testlane, và **số lượng test case** đã thêm (kèm khoảng ID Testlane tự sinh).
+- Báo cho user: task id + title vừa tạo trên Testlane, **số lượng test case** (kèm khoảng ID Testlane tự sinh), số case `expected-unconfirmed` / `env-blocked`, và mã `A`/`Q` nào đang treo case nào.
+- **Khi gọi từ `qa-issue-run`:** ghi `runs/<KEY>/testcases.json`:
+  ```json
+  {"taskId": "...", "taskTitle": "[KEY] ...", "cases": [
+    {"internalId": "TC-TIB-001", "testlaneId": "TC-TIB-7001", "title": "...", "priority": "High",
+     "scopeRef": ["BR2"], "labels": ["expected-unconfirmed"], "codes": ["A2"], "status": "not-run"}]}
+  ```
+  Lấy `testlaneId` từ kết quả `create_test_cases`. Không hỏi người dùng giữa chừng.
+- **Khi PO trả lời Q/A** (cập nhật từ `decisions.md`): dùng `update_test_case` sửa đúng các case mang mã đó (expected, nhãn, status). Đáp án làm case thừa → đặt `skipped` + lý do (Testlane không xoá được case). Đáp án cần case mới → `create_test_case` lẻ.
 - Nếu một tool Testlane lỗi (không phải member, field không hợp lệ, v.v.), báo rõ lỗi và dừng đúng chỗ — không tiếp tục tạo lộn xộn.
 
 ---
@@ -229,3 +259,7 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
 - Nếu deferred, load tool trước khi gọi: `mcp__testlane__list_projects`, `list_tasks`, `create_task`, `create_test_cases`, `create_test_case`.
 - `list_tasks` trên project nhiều task có thể vượt giới hạn output — kết quả được lưu ra file, đọc bằng `jq`/python thay vì đọc thẳng.
 - User phải là member của project Testlane đích (mặc định teeinblue `TIB`) — nếu chưa, `list_projects` sẽ cho thấy `isMember:false` và các tool write sẽ bị reject.
+
+## Ghi mốc thời gian (teeinblue)
+
+Khi làm trong repo `teeinblue-manual` và biết issue key: `python3 scripts/issue_timing.py start <KEY> testcase` trước khi bắt đầu, `... end <KEY> testcase` khi xong. Gọi từ `qa-issue-run` thì skill điều phối đã ghi, không ghi trùng.

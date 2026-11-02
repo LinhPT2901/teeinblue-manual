@@ -193,7 +193,7 @@ Ghi kết quả preflight ở đầu báo cáo. Một lần hỏi duy nhất; vi
 **Chế độ preflight-only** (prompt ghi "CHỈ chạy Preflight", thường do `qa-issue-run` gọi ở P4 để gom việc của nhiều issue vào một lần hỏi): chỉ làm mục 0 + mục 2, **không** `R start`, không chạy case, không sửa gì trên môi trường. Trả về: đã tự kiểm được gì, danh sách việc cần người dùng (mỗi việc kèm case phụ thuộc), và các case chạy được ngay.
 
 ### 1. Đọc đề bài
-- `list_projects` → lấy project (mặc định teeinblue `TIB`, phải `isMember: true`).
+- Project teeinblue: `projectId` = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab` (key `TIB`). Không đọc context trên Testlane (xem `.claude/testlane-status-sync.md` mục 0).
 - `list_tasks` → tìm task theo id người dùng đưa. Output có thể vượt giới hạn → đọc file kết quả bằng `python3`/`jq`, đừng đọc thẳng.
 - `list_test_cases` với `taskId` → đọc **toàn bộ** case: title, priority, steps, expectedResult, status, và các note `PO/DEV confirm`.
 - Đọc kỹ `notes` của task: thường có test data đã dựng sẵn (campaign/artwork id, layer, tài khoản), phần blocked đã biết, và bối cảnh issue.

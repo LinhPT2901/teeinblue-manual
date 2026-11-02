@@ -27,6 +27,7 @@ Gặp UI khác ghi chép: cập nhật đúng file chủ đề (ghi ngày), khô
 | `quick-navigation.md` | Popup Quick navigation, điều kiện enable |
 | `shop-config-defaults.md` | Store config công khai, mặc định layer theo ngày (Rule 14), Product Page Settings, market/currency |
 | `storefront-sdk.md` | SDK v1/v2, paragraph rules, cache bundle, route `merchant/*`, rate limit, localStorage, ATC/checkout/order |
+| `orders-fulfillment.md` | Đổi status line item (item-level vs order-level, pause), merchOne/Picanova |
 | `qa-rules.md` | Rule 13 (race condition), Rule 14 (sai mặc định), nguyên tắc verify |
 | `_archive.md` | Nhật ký phiên, blocker đã hết, ghi chép bị thay thế (nguyên văn, chỉ để tra cứu) |
 

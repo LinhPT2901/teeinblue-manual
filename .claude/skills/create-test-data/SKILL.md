@@ -45,7 +45,7 @@ Chỉ được hỏi **tối đa 1 câu** trước khi bắt đầu. Mọi thứ
 
 ### Bước 1 — Đọc task và test case từ Testlane
 
-1. `mcp__testlane__list_projects` → lấy project id (mặc định **teeinblue / `TIB`** = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab`). Chỉ dùng project có `isMember: true`.
+1. `mcp__testlane__list_projects` → lấy project id (mặc định **teeinblue / `TIB`** = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab` — truyền id này, không truyền key). Không đọc context trên Testlane. Chỉ dùng project có `isMember: true`.
 2. `mcp__testlane__list_tasks` để tìm/xác nhận task (bao gồm `notes` — dev thường để setup, branch, out-of-scope ở đó).
 3. `mcp__testlane__list_test_cases` với `taskId` → đọc **toàn bộ** test case: `title`, `steps` (chứa Preconditions), `expectedResult`.
 

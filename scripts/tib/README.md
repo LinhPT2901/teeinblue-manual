@@ -7,6 +7,8 @@ Mục đích: giảm thời gian execute. Agent viết một case file ngắn d�
 | `lib.mjs` | Helper: storefront SDK (`sf`), merchant API công khai (`api`), mạng (`net`), `until`, `testFile` |
 | `run.mjs` | Runner: mỗi case một browser context, chạy song song, ghi kết quả + bất thường + trace |
 | `poll.mjs` | Chờ tới khi điều kiện đúng (lệnh shell hoặc URL), thay cho `sleep N` |
+| `sync_objects.mjs` | Bộ key object/feature (knowledge `qa-knowledge` + local), chọn key theo phạm vi — xem `tests/prod/README.md` |
+| `kb_context.mjs` | Lấy knowledge của các key một issue → `runs/<KEY>/context.md` (oracle / quan sát / gap), tự `git pull` |
 | `examples/` | 4 case mẫu đã chạy pass trên staging 2026-11-01. Chạy lại sau khi sửa `lib.mjs` |
 
 ## Chạy

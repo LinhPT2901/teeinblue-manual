@@ -15,6 +15,7 @@ Mọi category đều `POST /api/clipart-categories` (type: clipart / vector / a
 ## Item theo loại
 
 - Clipart / Vector: vùng `Drag and Drop / Click to upload` (file chooser, multiple). Clipart → `POST temporary-files/upload-url` + `POST /api/cliparts/by-temporary-file`; Vector SVG → `POST /api/cliparts/svg`. Upload nhiều file 1 lần chạy song song ⇒ thứ tự (position) bị XÁO; cần thứ tự cố định thì upload từng file. Sau upload bấm `Reload`. Clipart mới có thể `url:null` tới khi job nền chạy.
+- Kết quả dropzone (clipart, layer image, mockup library): icon green check / red mark bị CSS ẩn ⇒ đọc theo text. Thành công = `Your file is uploaded, we are generating file preview…`; lỗi = text đỏ `[data-dz-errormessage]` dưới tên file. (TIB-5544)
 - Đổi tên clipart: click link tên → popup `textarea` + `.vinput-btn-primary` (✓) → GraphQL.
 - Additional Options: `input[placeholder="Item name"]` + `Add new` (`POST /api/cliparts`).
 - Map Styles: `input[placeholder="Map style option name"]` + `Add new`; URL style: click `Enter maps style url` → textarea + `.vinput-btn-primary` ⇒ `PUT /api/cliparts/<id>`.

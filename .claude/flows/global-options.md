@@ -34,4 +34,5 @@ Form giống panel layer Addon Charge, thêm Name ở đầu. Xem `layers-form-e
 - Panel sau khi chọn: `<tên GO>` + link `Edit` (mở sửa GO — đừng bấm) + `Option title: <...>`.
 - JSON layer: `customization_type: global_option`, `global_option: <id>` (giữ `form_label` cũ của layer; storefront hiện Option Title của GO).
 - Nhiều layer cùng GO ⇒ storefront 1 field, lên cart 1 lần (localStorage: `storefront-sdk.md`).
+- Sửa GO xong muốn storefront thấy ⇒ `Update` campaign có dùng GO (`publish-sync.md`). Campaign chưa từng bị đọc có thể hiện data mới ngay — trùng hợp, đừng coi là đã nhận. (TIB-5591)
 - 🔴 Defect mở (2026-08-28): cart template / show_in_cart của GO Song Search bị bỏ qua ở SDK — xem `storefront-sdk.md`.

@@ -6,7 +6,7 @@ Agent phụ trách: `tib-prod-verify` (`.claude/agents/tib-prod-verify.md`). Run
 
 ## Chia theo object — đồng bộ với repo knowledge
 
-Bộ key = `object_key` / `feature_key` của repo knowledge `context-lifecycle` (`knowledge/products/teeinblue/_registry.json` + `<object>/features/<feature>/`) **cộng key local** cho phần knowledge chưa có. Cùng một bộ key được dùng ở mọi chỗ:
+Bộ key = `object_key` / `feature_key` của repo knowledge `qa-knowledge` — bản đã publish (`products/teeinblue/_registry.json` + `<object>/features/<feature>/`) **cộng key local** cho phần knowledge chưa có. Cùng một bộ key được dùng ở mọi chỗ:
 
 | Chỗ dùng | Dạng |
 |---|---|
@@ -23,7 +23,7 @@ node scripts/tib/sync_objects.mjs           # thêm object/feature mới, đánh
 node scripts/tib/sync_objects.mjs --check   # chỉ kiểm (preflight)
 ```
 
-Repo knowledge mặc định ở `../context-lifecycle`, có thể đổi bằng biến `TIB_KNOWLEDGE_DIR`.
+Repo knowledge mặc định ở `../qa-knowledge/products/teeinblue` (clone: `git clone --depth 1 https://github.com/qikify-QA/qa-knowledge.git` cạnh repo này), có thể đổi bằng biến `TIB_KNOWLEDGE_DIR`. Knowledge cho analysis: `node scripts/tib/kb_context.mjs <KEY> <object/feature> ...` → `runs/<KEY>/context.md`.
 
 **Chọn key theo phạm vi, không theo tên.** Knowledge có thể thiếu key cho chức năng mới. Key có sẵn chỉ dùng khi phạm vi của nó **bao trọn** thay đổi của ticket. Không xác định được thì **tạo key mới chính xác**, không gán ép vào key gần đúng, vì gán sai sẽ làm regression chọn sai spec.
 

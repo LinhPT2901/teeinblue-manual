@@ -184,7 +184,7 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
 
 ### Quy trình (theo đúng thứ tự)
 
-1. **Xác định project** — gọi `list_projects`. Chỉ dùng project có `isMember: true` (các tool write reject project không phải member). Mặc định dùng project **teeinblue** (`TIB`) trên máy này; nếu app khác đã có project riêng và user là member thì dùng project đó.
+1. **Xác định project** — gọi `list_projects`. Chỉ dùng project có `isMember: true` (các tool write reject project không phải member). Mặc định dùng project **teeinblue** (key `TIB`, `projectId` = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab`; truyền key thay id sẽ bị báo "not a member") trên máy này; nếu app khác đã có project riêng và user là member thì dùng project đó.
 2. **Tạo task** — gọi `create_task`:
    - `projectId`: id project ở bước 1.
    - `description` (chính là **title của task**): **lấy nguyên title của issue Jira gốc, kèm key ở đầu** — `"[<KEY>] <title issue gốc>"`.
@@ -255,7 +255,7 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
 ## Ghi chú môi trường (một lần)
 
 - Skill này chỉ cần các tool `mcp__testlane__*` (đã kết nối sẵn qua MCP). Không cần Google credentials, không cần script Python.
-- **Không gọi `get_project_context`** trước khi sinh test case. Context project trên Testlane (vd dump toàn bộ Jira của project) rất lớn (hàng nghìn issue, hàng trăm nghìn ký tự) và không phải nguồn xác nhận cho case đang test — dựa vào input/Jira issue/Requirement Analysis đã có trong hội thoại là đủ.
+- **Không đọc context trên Testlane** (`get_project_context`, `get_project_context_file`, `search_knowledge`). Với teeinblue, context lấy từ `runs/<KEY>/context.md` (qa-knowledge). Context project trên Testlane (vd dump toàn bộ Jira của project) rất lớn (hàng nghìn issue, hàng trăm nghìn ký tự) và không phải nguồn xác nhận cho case đang test — dựa vào input/Jira issue/Requirement Analysis đã có trong hội thoại là đủ.
 - Nếu deferred, load tool trước khi gọi: `mcp__testlane__list_projects`, `list_tasks`, `create_task`, `create_test_cases`, `create_test_case`.
 - `list_tasks` trên project nhiều task có thể vượt giới hạn output — kết quả được lưu ra file, đọc bằng `jq`/python thay vì đọc thẳng.
 - User phải là member của project Testlane đích (mặc định teeinblue `TIB`) — nếu chưa, `list_projects` sẽ cho thấy `isMember:false` và các tool write sẽ bị reject.

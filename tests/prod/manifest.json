@@ -1,7 +1,7 @@
 {
   "_doc": "Xem tests/prod/README.md. objects: object_key/feature_key ĐỒNG BỘ từ repo knowledge (scripts/tib/sync_objects.mjs, không sửa tay label/features). Repo này chỉ giữ: affects (đổi object này thì object nào cần regression — bản nháp 2026-11-01, QA chỉnh), fixtures.<env>.<tên> (spec chọn bằng meta.fixture). tasks: task → objects/features (= tag task trên Testlane) + trạng thái.",
   "knowledge": {
-    "dir": "../context-lifecycle/knowledge/products/teeinblue",
+    "dir": "../qa-knowledge/products/teeinblue",
     "registryStatus": "DRAFT_NEEDS_REVIEW",
     "registryGeneratedAt": "2026-09-26"
   },
@@ -16,8 +16,6 @@
         "condition-cycle-validation",
         "conditional-setting-config",
         "editor-layer-workspace",
-        "group-layer-effective-visibility",
-        "group-layer-order-design-render",
         "layer-common-config",
         "layer-condition-value-binding",
         "layer-config-form-elements",
@@ -29,10 +27,7 @@
         "layer-config-vector",
         "layer-duplicate-link-copy",
         "layer-print-effects",
-        "populate-values",
-        "psd-import",
-        "text-color-sequence-render",
-        "text-multi-stroke"
+        "populate-values"
       ],
       "affects": [
         "sdk",
@@ -42,7 +37,38 @@
         "staging": {},
         "production": {}
       },
-      "localFeatures": {},
+      "localFeatures": {
+        "group-layer-effective-visibility": {
+          "name": "Effective visibility của Group layer (ẩn Group ẩn cả nhánh, giữ cờ riêng của layer con)",
+          "scope": "Thuộc: Store owner ẩn/hiện một Group trong Artwork Editor 2.0 để tạm ẩn cả nhánh layer bên dưới (kể cả Group lồng, Group có mask) mà không làm mất cờ ẩn/hiện riêng của từng layer con; layer panel cho biết layer nào đang ẩn do Group; và mọi nơi render design (canvas editor, Live preview portal, MCP render-design-preview, print file) đều chỉ vẽ layer có cờ của chính nó và mọi Group tổ tiên cùng ON. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        },
+        "group-layer-order-design-render": {
+          "name": "Render order design cho artwork có Group layer (Artwork 2.0)",
+          "scope": "Thuộc: Là merchant (store owner/staff), nhận order design (print file) hoàn tất và đúng cho order tạo từ Artwork 2.0 có Group layer — kể cả group chứa nhiều layer (~250), group có mask, group lồng nhau, group có layer con tắt visible: order design generate hoàn tất (design 'Completed'), không bị auto-stop/timeout, không kẹt 'Generating', và nội dung render đúng (đúng vị trí, đúng mask, đúng visibility). (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        },
+        "psd-import": {
+          "name": "Import artwork từ file PSD (giữ trạng thái ẩn của folder)",
+          "scope": "Thuộc: Store owner tạo artwork từ file PSD qua Artworks > Import > PSD Single template và nhận được artwork giữ đúng cấu trúc/trạng thái ẩn của file: folder ẩn trong PSD thành Group ẩn, layer con giữ cờ riêng, canvas không vẽ nội dung Group ẩn. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        },
+        "text-color-sequence-render": {
+          "name": "Render text Color Sequence (rainbow) trên ảnh in — Locate Artwork và Order Design PNG khớp preview SDK",
+          "scope": "Thuộc: Khi buyer đặt order với layer text dùng Color Sequence (rainbow, màu lặp theo từng chữ), ảnh Locate Artwork trên portal và Order Design PNG dùng để in phải thể hiện đúng text buyer đã thấy ở preview SDK: đủ ký tự, màu từng chữ theo sequence, vị trí/căn lề, độ rộng, khoảng cách chữ, stroke và hướng chữ — để merchant in đúng design đã bán. Hiện mọi hiểu biết về feature này chỉ là quan sát một lượt chạy trên staging ngày 2026-10-22 (trước khi PR teeinblue-api #4044 của Jira TIB-5606 merge lúc 2026-10-22 15:44; ship production chưa xác nhận) và mô tả thay đổi của dev chưa được kiểm; chưa có hành vi đúng được xác nhận. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        },
+        "text-multi-stroke": {
+          "name": "Stroke nhiều lớp cho Paragraph (stack stroke_layers) và phạm vi áp dụng theo loại text layer",
+          "scope": "Thuộc: Store owner tạo viền nhiều lớp cho layer Paragraph trên artwork Artwork 2.0 (tối đa 3 vòng, mỗi vòng có màu và độ dày riêng, xếp từ mép chữ ra ngoài), sắp xếp/xoá/bật tắt các vòng, và nhận được design in (PNG order design) có cùng hình với preview trong Artwork Editor; dữ liệu stroke được giữ đúng qua Save, mở lại và khi đổi loại layer. Toàn bộ là quan sát trên staging trước khi 7 PR TIB-5580 merge (2026-10-22); ship production chưa xác nhận; chưa có xác nhận PO/business. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        }
+      },
       "source": "knowledge"
     },
     "asset-category": {
@@ -105,7 +131,6 @@
       "label": "Global Option",
       "features": [
         "artwork-personalization-global-option-link",
-        "global-option-additional-option-items",
         "global-option-instance-management"
       ],
       "affects": [
@@ -116,7 +141,14 @@
         "staging": {},
         "production": {}
       },
-      "localFeatures": {},
+      "localFeatures": {
+        "global-option-additional-option-items": {
+          "name": "Quản lý nguồn item và item inline của Global Option loại Additional Option",
+          "scope": "Thuộc: Là portal staff (owner), tôi muốn chọn nguồn item cho một Global Option Additional Option (khai báo inline 'Create new' hoặc 'Select from category') và duy trì danh sách item inline (gán thumbnail hàng loạt, xoá hàng loạt, sắp thứ tự) để buyer trên storefront thấy đúng tập item theo đúng thứ tự tôi đã sắp, mà không mất dữ liệu nguồn cũ khi đổi nguồn. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        }
+      },
       "source": "knowledge"
     },
     "product-base": {
@@ -129,7 +161,6 @@
         "product-base-create",
         "product-base-identity",
         "product-base-lifecycle",
-        "variant-add-to-campaigns",
         "variant-catalog"
       ],
       "affects": [
@@ -140,7 +171,20 @@
         "staging": {},
         "production": {}
       },
-      "localFeatures": {},
+      "localFeatures": {
+        "variant-add-to-campaigns": {
+          "name": "Thêm nhiều variant của Product Base vào campaign (bulk Add to campaigns)",
+          "scope": "Thuộc: Merchant chọn nhiều variant trong bảng Variants của Product Base rồi thêm chúng một lần vào các campaign đang dùng product base đó, các variant được thêm ở trạng thái available, không nhân đôi variant campaign đã có và không kéo theo variant Unavailable. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        },
+        "provider-printarea-import": {
+          "name": "Import print area từ fulfillment provider (kích thước + DPI mặc định)",
+          "scope": "Thuộc: tạo Product Base / import printarea từ provider (Printify, Picanova/merchOne, Printbelle…) qua Import product và popup Import from <provider>: tên, width/height và DPI mặc định gán cho từng print area (300; print area > 9000px của Printify/Picanova giảm nửa + DPI 150). Không thuộc: sửa tay printarea sau import (printarea-definition), đồng bộ variant/giá từ provider, kết nối API provider.",
+          "evidence": "TIB-5500",
+          "added": "2026-11-02"
+        }
+      },
       "source": "knowledge"
     },
     "campaign": {
@@ -150,7 +194,6 @@
         "campaign-list-browse",
         "campaign-navigation",
         "campaign-security-permissions",
-        "campaign-shopify-media-sync",
         "create-campaign-by-product-base",
         "create-campaign-by-shopify"
       ],
@@ -162,7 +205,14 @@
         "staging": {},
         "production": {}
       },
-      "localFeatures": {},
+      "localFeatures": {
+        "campaign-shopify-media-sync": {
+          "name": "Campaign Shopify Media Sync (video & variant image)",
+          "scope": "Thuộc: Là merchant-owner, sau khi gán mockup/video cho variant trong campaign, publish hoặc Update (sync) campaign lên Shopify để Shopify product nhận media của campaign và mỗi Shopify variant có variant image phù hợp với assignment. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        }
+      },
       "source": "knowledge"
     },
     "translation": {
@@ -186,7 +236,6 @@
       "label": "SDK / Storefront runtime",
       "features": [
         "genai-personalization-runtime",
-        "open-platform-customization-callback",
         "product-page-settings-config",
         "storefront-buyer-facing"
       ],
@@ -210,7 +259,14 @@
         },
         "production": {}
       },
-      "localFeatures": {},
+      "localFeatures": {
+        "open-platform-customization-callback": {
+          "name": "Open-platform SDK — callback onCustomizationCreated trả design_url / design_urls",
+          "scope": "Thuộc: Là merchant integration dùng open-platform SDK (open/index.js), nhận được payload của customization mà buyer vừa submit — gồm link design (design_url và mảng design_urls theo artwork) — qua callback window.teeinblue.onCustomizationCreated đã gán sẵn. (feature có ở context-lifecycle, chưa publish trong qa-knowledge; publish rồi thì sync tự gộp lại)",
+          "added": "2026-11-02",
+          "evidence": "context-lifecycle"
+        }
+      },
       "source": "knowledge"
     },
     "order": {
@@ -224,8 +280,39 @@
         "staging": {},
         "production": {}
       },
-      "localFeatures": {},
+      "localFeatures": {
+        "order-design-print-resolution": {
+          "name": "Độ phân giải (DPI) ghi trong file order design theo print area",
+          "scope": "Thuộc: file order design (PNG/JPG/PDF) và thumbnail được export với resolution = DPI của print area (null = 300); kích thước pixel của design giữ nguyên; áp dụng cho order mới và khi regenerate design. Không thuộc: cấu hình DPI trên Product Base (product-base/printarea-definition), nội dung render layer (vị trí, màu, mask), chọn design format của artwork.",
+          "evidence": "TIB-5500",
+          "added": "2026-11-02"
+        }
+      },
       "source": "knowledge"
+    },
+    "third-party-services": {
+      "source": "local",
+      "label": "3rd-party Services (kết nối dịch vụ ngoài cấp account)",
+      "scope": "Thuộc: trang Extras > 3rd-party Services của portal — cấu hình provider và API key của dịch vụ ngoài (Maps, Gen AI Effects, Remove Background, Cutout.Pro, ImagenHub, Emboss, Upload limit, Canva) áp cho mọi store của account, lưu ở private_config của user. Không thuộc: cấu hình effect trên từng layer trong artwork editor (artwork/layer-config-image), runtime upload/xử lý ảnh trên storefront (sdk).",
+      "evidence": "TIB-5399",
+      "added": "2026-11-02",
+      "features": [],
+      "localFeatures": {
+        "remove-background-provider": {
+          "name": "Chọn provider Remove Background và API key",
+          "scope": "Thuộc: chọn background remover service (Removal.AI, Remove.BG, Cutout.pro, Teeinblue built-in), lưu/sửa/xoá API key của từng provider, option 'Use the photo's original size', trạng thái deprecate/ẩn của provider, migration provider của seller khi provider ngừng hoạt động. Không thuộc: cách effect Remove background được gắn vào layer photo, chất lượng ảnh của từng provider.",
+          "evidence": "TIB-5399",
+          "added": "2026-11-02"
+        }
+      },
+      "affects": [
+        "artwork",
+        "sdk"
+      ],
+      "fixtures": {
+        "staging": {},
+        "production": {}
+      }
     }
   },
   "tasks": {}

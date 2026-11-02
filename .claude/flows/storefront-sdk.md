@@ -144,6 +144,11 @@ Cách đo: bấm Generate 1 lần qua UI, wrap `window.fetch` để capture; SDK
 
 Là `.tee-field` đầu tiên (`select`, label = label template); ban đầu `Choose an option` nhưng form hiện layer template đầu; đổi template ⇒ field đổi ngay. SDK nhớ template qua localStorage (sang locale khác vẫn giữ).
 
+## Cross-sell (TIB-5418)
+
+- Setup: các sản phẩm cross-sell gom vào 1 Shopify collection → Portal `Product Page settings` bật cross-sell (`Show Cross-sell Personalization`) → gắn metafield lên Shopify product của campaign chính. Có 2 metafield: collection và product (addon).
+- Campaign chính để test: `tib-reusable-test-data.md` (mục Campaign / product).
+
 ## Edit customization
 
 - `PUT merchant/customizations/<uuid>?shop=` chỉ phát từ customize page `https://staging-sdk.teeinblue.com/customize/?customization-id=&product-id=<shopifyProductId>&shop=` (nút `Update cart`), body `{data:{...}, platform_product_id:<id>}`, 200, ratelimit 4.

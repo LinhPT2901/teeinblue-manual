@@ -30,8 +30,10 @@ Trước mỗi lần phân tích issue mới, kiểm tra thư mục `rules/` n�
 
 ## Kiến thức của repo (teeinblue)
 
-Khi phân tích issue teeinblue (làm trong repo `teeinblue-manual`), đọc thêm:
-- `rules/tib-product-behaviors.md` — hành vi đã được PO/Dev/người dùng xác nhận (by design, phạm vi đã chốt).
+Khi phân tích issue teeinblue (làm trong repo `teeinblue-manual`), nội dung issue đọc từ Jira; **không** đọc context trên Testlane (`get_project_context`, `search_knowledge`). Đọc thêm:
+- **Knowledge của feature** (repo `qa-knowledge`, clone ở `../qa-knowledge`): đọc xong ticket thì chọn key ứng viên (`node scripts/tib/sync_objects.mjs --list` / `--show`, cách chọn ở mục 7), rồi chạy `node scripts/tib/kb_context.mjs <KEY> <object/feature> ...` (tự `git pull`). Script ghi `runs/<KEY>/context.md`: chỉ item của feature đã chọn + item cấp object + item liên quan, tách sẵn "Dùng được làm expected" và "Quan sát". Chỉ đọc file đó, không mở nguyên thư mục knowledge, không đọc `open-questions.md` (grep theo topic nếu cần). Key bị thiếu trong knowledge thì script ghi vào mục "Knowledge gap"; chép mục đó vào analysis, vì đó là đầu vào CCR sau khi verify production. Chọn lại key ở mục 7 thì chạy lại script.
+- `rules/tib-product-behaviors.md` — quyết định đã được PO/Dev/người dùng chốt (by design, phạm vi đã chốt). Knowledge phần lớn mới là quan sát, nên file này vẫn là nguồn chính cho câu hỏi đúng/sai và thuộc scope hay không.
+- `.claude/flows/` — cách dùng app (màn nào, thao tác gì, nhìn vào đâu để biết kết quả); đọc `README.md` rồi file đúng chủ đề khi cần hiểu flow để viết bước test hoặc setup.
 - `rules/env-capabilities.md` — cái gì test được trên store/instance nào, cái gì không test được. Dùng cho mục Impacted Areas / Risks, và để đánh dấu sớm phần **không test được trên staging** (mục 10).
 - `.claude/tib-reusable-test-data.md` — data đặc thù có sẵn (account, store, campaign trạng thái hiếm).
 
@@ -40,7 +42,7 @@ Khi phân tích issue teeinblue (làm trong repo `teeinblue-manual`), đọc th�
 Mỗi điểm còn thiếu/mơ hồ phải được tra theo **đúng thứ tự** sau trước khi trở thành câu hỏi:
 
 1. **Ticket và comment** — description, AC, mọi comment (quyết định cuối thường nằm ở comment), sub-task, issue link.
-2. **`rules/` và CCR** — `rules/` của skill này, `rules/` của repo (mục trên), các file CCR (`CCR/`, `CCR-*.md`) của các ticket đã ship.
+2. **`rules/`, knowledge đã xác nhận và CCR** — `rules/` của skill này, `rules/` của repo (mục trên), mục "Dùng được làm expected" của `runs/<KEY>/context.md` (ghi nguồn `qa-knowledge <kb_id>`), các file CCR (`CCR/`, `CCR-*.md`) của các ticket đã ship. Item trong mục "Quan sát" của `context.md` thuộc bậc 3, không phải bậc này.
 3. **Hành vi hiện tại** — probe thật trên staging (đọc UI/API/MCP read-only) hoặc production (**chỉ đọc**, không tạo/sửa gì). Hành vi hiện tại trả lời được câu "hiện đang thế nào", không trả lời được "sau fix phải thế nào".
 4. **Tính năng tương tự đã có** — component/flow tương tự trong sản phẩm đang xử lý tình huống đó ra sao (vd field khác cùng component, layer khác cùng loại).
 
@@ -137,7 +139,8 @@ Trạng thái UI, layout, thông báo, empty state, loading state, disabled stat
 
 ### 7. Impacted Areas
 Module, trang, API, cài đặt, dữ liệu, flow hiện có, khu vực regression bị ảnh hưởng, **đánh mã `IA1`, `IA2`…**.
-**teeinblue: mỗi IA ghi kèm `object_key/feature_key`** (ưu tiên key của repo knowledge, thiếu thì tạo key local) (`context-lifecycle/knowledge/products/teeinblue/`, đọc `_registry.json` — map từ khoá ticket qua `aliases` — và tên thư mục `<object>/features/`), vd `IA2 — sdk/storefront-buyer-facing: ATC giữ giá trị paragraph`. Chọn key **theo phạm vi, không theo tên gần giống**: `node scripts/tib/sync_objects.mjs --show <object>[/<feature>]` (repo teeinblue-manual) cho mục tiêu, capability, entry point của từng feature (knowledge) hoặc phạm vi đã ghi (local). Key có sẵn chỉ dùng khi phạm vi của nó **bao trọn** thay đổi của IA. Không xác định được key nào bao trọn → **tạo key mới chính xác**, không gán ép vào key gần đúng: feature mới (`--add-feature <object>/<feature>`) khi đúng entity nhưng chưa có chức năng đó; object mới (`--add-object`, kèm `--affects`) khi là entity khác hẳn. Key mới đặt theo **chức năng** (kebab-case, kiểu tên của knowledge như `layer-config-text`, `create-campaign-by-shopify`; không mã ticket / fix / bug / misc), bắt buộc `--name`, `--scope "Thuộc: … Không thuộc: …"`, `--evidence <KEY>`; đọc cảnh báo key gần giống để không tạo trùng nghĩa. Danh sách key này là tag của task Testlane và là đầu vào chọn regression.
+**teeinblue: mỗi IA ghi kèm `object_key/feature_key`** (ưu tiên key của repo knowledge, thiếu thì tạo key local) (`../qa-knowledge/products/teeinblue/`, đọc `_registry.json` — map từ khoá ticket qua `aliases`; một alias có ở nhiều object thì xét cả các object đó — và tên thư mục `<object>/features/`), vd `IA2 — sdk/storefront-buyer-facing: ATC giữ giá trị paragraph`. Chọn key **theo phạm vi, không theo tên gần giống**: `node scripts/tib/sync_objects.mjs --show <object>[/<feature>]` (repo teeinblue-manual) cho mục tiêu, capability, entry point của từng feature (knowledge) hoặc phạm vi đã ghi (local). Key có sẵn chỉ dùng khi phạm vi của nó **bao trọn** thay đổi của IA. Không xác định được key nào bao trọn → **tạo key mới chính xác**, không gán ép vào key gần đúng: feature mới (`--add-feature <object>/<feature>`) khi đúng entity nhưng chưa có chức năng đó; object mới (`--add-object`, kèm `--affects`) khi là entity khác hẳn. Key mới đặt theo **chức năng** (kebab-case, kiểu tên của knowledge như `layer-config-text`, `create-campaign-by-shopify`; không mã ticket / fix / bug / misc), bắt buộc `--name`, `--scope "Thuộc: … Không thuộc: …"`, `--evidence <KEY>`; đọc cảnh báo key gần giống để không tạo trùng nghĩa. Danh sách key này là tag của task Testlane và là đầu vào chọn regression.
+Cuối mục ghi dòng **`Knowledge gap:`** liệt kê key không có trong knowledge (từ `context.md`, kèm key local vừa tạo), hoặc `không`. Bước CCR sau production dùng dòng này.
 Đánh dấu mỗi mục: Confirmed / Assumption / Need Dev/PO confirmation. Chỉ liệt kê khu vực có **đường ảnh hưởng cụ thể** (dùng chung code/component/data với thay đổi) — không liệt kê khu vực "có thể liên quan" chung chung.
 
 ### 7b. Out of Scope

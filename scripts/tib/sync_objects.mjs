@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Bộ object/feature của tests/prod/manifest.json = key của repo knowledge (context-lifecycle) + key riêng (local).
+ * Bộ object/feature của tests/prod/manifest.json = key của repo knowledge (qa-knowledge — bản đã publish) + key riêng (local).
  *
  *   node scripts/tib/sync_objects.mjs                       # đồng bộ với knowledge + kiểm spec/task
  *   node scripts/tib/sync_objects.mjs --check               # chỉ kiểm, exit 1 nếu lệch (preflight)
@@ -9,7 +9,7 @@
  *   node scripts/tib/sync_objects.mjs --add-feature <object>/<feature> --name "..." --scope "..." --evidence TIB-xxxx
  *   node scripts/tib/sync_objects.mjs --add-object <object> --name "..." --scope "..." --evidence TIB-xxxx [--affects a,b]
  *
- * Nguồn knowledge: $TIB_KNOWLEDGE_DIR (mặc định ../context-lifecycle/knowledge/products/teeinblue):
+ * Nguồn knowledge: $TIB_KNOWLEDGE_DIR (mặc định ../qa-knowledge/products/teeinblue):
  *   _registry.json → object_key, label, aliases · <object>/features/<feature_key>/ → feature. Repo knowledge chỉ ĐỌC.
  * Key local: tạo khi không xác định được key có sẵn nào bao trọn phạm vi thay đổi (so bằng --show, không so tên).
  * Key mới phải đặt đúng phạm vi: kebab-case, không mã ticket / fix / bug / misc...; bắt buộc --name, --scope
@@ -21,7 +21,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { ROOT } from './lib.mjs';
 
-const KDIR = process.env.TIB_KNOWLEDGE_DIR || path.resolve(ROOT, '../context-lifecycle/knowledge/products/teeinblue');
+const KDIR = process.env.TIB_KNOWLEDGE_DIR || path.resolve(ROOT, '../qa-knowledge/products/teeinblue');
 const MANIFEST = path.join(ROOT, 'tests/prod/manifest.json');
 const a = process.argv.slice(2);
 const val = k => (a.includes(k) ? a[a.indexOf(k) + 1] : undefined);
@@ -38,7 +38,7 @@ function badKey(k) {
 }
 
 if (!fs.existsSync(path.join(KDIR, '_registry.json'))) {
-  console.error(`Không thấy ${KDIR}/_registry.json — đặt TIB_KNOWLEDGE_DIR hoặc clone context-lifecycle cạnh repo này`);
+  console.error(`Không thấy ${KDIR}/_registry.json — đặt TIB_KNOWLEDGE_DIR hoặc clone qa-knowledge cạnh repo này (git clone --depth 1 https://github.com/qikify-QA/qa-knowledge.git)`);
   process.exit(2);
 }
 const registry = JSON.parse(fs.readFileSync(path.join(KDIR, '_registry.json'), 'utf8'));

@@ -30,6 +30,14 @@ Cách viết test result: không xoá dấu vết lần chạy sai. Giữ screen
 
 Cùng họ Rule 13: loại trừ biến môi trường/cấu hình trước khi kết luận defect.
 
+## Issue nhận URL asset từ client — câu hỏi mở cần hỏi PO/Dev (từ TIB-5516)
+
+Chưa ai trả lời, nên không dùng làm expected:
+- Ownership check có áp cho URL CDN tuyệt đối không (hiện `cdn.ownego.com/teeinblue-staging/users/<merchant khác>/...` vẫn qua được).
+- File nào phải private / signed URL.
+- Có allowlist domain không.
+- Giới hạn kích thước file server tải về.
+
 ## Ghi chú chung khi verify
 
 - Toast là cách duy nhất biết validate Save fail ở artwork editor (console sạch) — đọc toast sau mỗi Save.

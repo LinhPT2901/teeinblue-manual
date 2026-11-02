@@ -4,6 +4,12 @@ Nguồn duy nhất cho việc cập nhật status **task** và **test case** tr�
 
 Mục tiêu: nhìn Testlane là biết issue đang ở đâu, không cần đọc `runs/<KEY>/`.
 
+## 0. Project và phạm vi đọc
+
+- Project Testlane của teeinblue: tên `teeinblue`, key `TIB`, **`projectId` = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab`**. Tool nhận `projectId` là id này, không phải key: truyền `TIB` sẽ bị báo "not a member".
+- Testlane chỉ dùng để đọc/ghi **task và test case** (kèm field CCR của task). **Không** đọc context trên Testlane (`get_project_context`, `get_project_context_file`, `search_knowledge`). Context sản phẩm lấy từ `qa-knowledge` qua `scripts/tib/kb_context.mjs`; nội dung issue đọc từ Jira.
+- Tìm task của một issue: `list_tasks` (output lớn, được lưu ra file) → lọc bằng python theo `devIssueKey` hoặc `[<KEY>]` ở đầu `description`; không đọc thẳng file.
+
 ## 1. Status task theo mốc
 
 | Mốc | Status task | Ai đặt |
@@ -16,7 +22,8 @@ Mục tiêu: nhìn Testlane là biết issue đang ở đâu, không cần đọ
 | Hết lượt execute (và review render đã xong): có case `failed` | `waiting-for-dev` | tib-execute-testcase / qa-issue-run |
 | Không có `failed`, nhưng còn case `blocked` / `expected-unconfirmed` / `not-run` chờ PO, Dev hoặc deploy | `waiting-for-dev` | như trên |
 | Mọi case `passed` hoặc `skipped` có lý do, không còn gì chờ | `ready-to-deploy` | như trên |
-| Dev báo đã deploy → `tib-prod-verify` chạy production: spec của task + regression + smoke **pass hết**, không còn render chờ review | `done` | tib-prod-verify |
+| Dev báo đã deploy → `tib-prod-verify` chạy production: spec của task + regression + smoke **pass hết**, không còn render chờ review, **và CCR của task đã submit thành công** | `done` | tib-prod-verify |
+| Production pass nhưng CCR chưa submit được (chưa có tool submit, submit lỗi) | giữ `ready-to-deploy` | — |
 | Production verify có spec fail | `waiting-for-dev` | tib-prod-verify |
 | Production verify còn ảnh render chờ review / thiếu fixture | giữ `ready-to-deploy` | — |
 
@@ -43,5 +50,5 @@ Status cuối được tính lại từ status thật của các case trên Test
 ## 4. Không làm
 
 - Không sửa notes / title / tags / assignee của task, không đính ảnh, không comment Jira, không tự `report_bug` (scope execute vẫn như cũ — chỉ thêm case, update status case và status task).
-- Chỉ `tib-prod-verify` được đặt `done`, và chỉ khi production verify của task pass hết.
+- Chỉ `tib-prod-verify` được đặt `done`, và chỉ khi production verify của task pass hết và CCR của task đã submit (bước 6b của agent). Đính CCR vào task (`set_task_ccr_file`) là ghi field CCR của task — được phép; không kéo Proposal trên Context Builder Board.
 - Kết quả production ghi vào field `Production` của case; **không** đổi `status` / `actualResult` staging của case.

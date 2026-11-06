@@ -51,4 +51,4 @@ Status cuối được tính lại từ status thật của các case trên Test
 
 - Không sửa notes / title / tags / assignee của task, không đính ảnh, không comment Jira, không tự `report_bug` (scope execute vẫn như cũ — chỉ thêm case, update status case và status task).
 - Chỉ `tib-prod-verify` được đặt `done`, và chỉ khi production verify của task pass hết và CCR của task đã submit (bước 6b của agent). Đính CCR vào task (`set_task_ccr_file`) là ghi field CCR của task — được phép; không kéo Proposal trên Context Builder Board.
-- Kết quả production ghi vào field `Production` của case; **không** đổi `status` / `actualResult` staging của case.
+- Kết quả production ghi vào field `Production` của case (`pass` / `fail` / `not-run` + ngày + spec + evidence hoặc lý do); **không** đổi `status` / `actualResult` staging của case. `not-run` không phải `fail`.

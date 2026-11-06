@@ -23,8 +23,8 @@ Chỉ **hai** việc được ghi lên Testlane:
 - **Không suy "cùng component nên cùng an toàn"**, không mượn bằng chứng của case này gán cho case khác.
 - **Nhãn bắt buộc:** mỗi kết luận ghi rõ là *quan sát trực tiếp* hay *suy luận*. Phần suy luận nêu tách bạch, không trộn vào bằng chứng.
 - **Case nhãn `expected-unconfirmed`** (hoặc case cũ ghi `PO/DEV confirm`) → **vẫn chạy** để thu thập hành vi thực tế, không log bug, ghi rõ trong `actualResult` là expected chưa có xác nhận và mã `A`/`Q` liên quan. Status phản ánh so với expected hiện tại, kèm ghi chú "chờ PO/Dev".
-- **Case nhãn `env-blocked`** → **không chạy**; giữ `skipped` (gen-testcase đã đặt). Chỉ chạy nếu `rules/env-capabilities.md` đã ghi giới hạn đó hết hiệu lực — khi đó ghi lý do trong `actualResult`.
-- **Vế không kiểm được trên staging** (Horizon, Strava, size gốc provider… theo `rules/env-capabilities.md`) → bỏ vế đó, ghi "vế X: skip — <lý do>", kết luận case theo các vế còn lại. Không đặt `blocked` vì vế đó.
+- **Case nhãn `env-blocked`** → **không chạy**; giữ `skipped` (gen-testcase đã đặt). Chỉ chạy nếu guide mục 4 không còn giới hạn đó — khi đó ghi lý do trong `actualResult`.
+- **Vế không kiểm được trên staging** (Horizon, Strava, size gốc provider… theo guide mục 4) → bỏ vế đó, ghi "vế X: skip — <lý do>", kết luận case theo các vế còn lại. Không đặt `blocked` vì vế đó.
 - Bug report chỉ chứa cái quan sát được. Giả thuyết nguyên nhân phải đánh dấu là giả thuyết.
 
 ## Case liên quan tới render design — GOM VÀO MỤC REVIEW, KHÔNG ĐẶT BLOCKED
@@ -93,14 +93,14 @@ Mỗi lần gọi tool tốn một vòng model suy nghĩ (~6–12s). Baseline 20
 
 Thử theo thứ tự, ghi cách đã dùng vào `actualResult`:
 
-0. **Bài học vận hành:** tra `.claude/tib-operational-lessons.md` theo Dấu hiệu + Phạm vi, rồi làm đúng 5 bước "Quy trình dùng" ở đầu file đó. Bài học khớp và vẫn còn đúng → tự phục hồi, ghi "phục hồi theo L-xxx" + bằng chứng, **không hỏi lại người dùng**. Bài học `chờ xác nhận` thì chưa được dùng như quy tắc.
+0. **Gỡ block:** tra `_flows/troubleshooting.md` theo dấu hiệu, làm theo cách xử lý rồi xác minh. Khớp → tự phục hồi, ghi "phục hồi theo <mục>" kèm bằng chứng, **không hỏi lại người dùng**.
 1. **Data đặc thù** (account không Mapbox, store Plus, victim org, campaign trạng thái hiếm...): tra `.claude/tib-reusable-test-data.md`. **Xác minh lại trước khi dùng** (mở link/ID, kiểm trạng thái), và chỉ sửa khi cột "Được sửa?" cho phép. Sau khi dùng, chỉ cập nhật thông tin có thay đổi hoặc vừa xác minh, theo quy tắc ở đầu file đó.
 2. **Lỗi chỉ cản setup** (theo bảng ở Quy tắc 2) → làm bước đó qua đường khác: REST/GraphQL bằng `fetch` trong session đang login (Sanctum cookie), hoặc staging MCP. Ghi rõ "bước X làm qua API vì UI lỗi" + lỗi UI vào mục bất thường của báo cáo. Lỗi nằm trong luồng đang test thì không né.
 3. **Shopify MCP không dùng được / không với tới** (sai store, không search order mới, không tạo collection, không publish Online Store) → login Shopify admin của đúng store bằng Playwright và làm qua UI. Profile Playwright giữ session; chỉ khi chưa có session và bị đòi đăng nhập/2FA thì mới nhờ người dùng login tay **một lần** trong cửa sổ Playwright.
 4. **Giới hạn tool** → dùng công thức ở mục "Công thức Playwright cho giới hạn tool" bên dưới.
 5. Hết cách mới `blocked`, ghi chính xác thứ còn thiếu và đã thử những gì.
 
-**Gỡ được một blocked bằng cách mới** → thêm bản ghi vào `.claude/tib-operational-lessons.md` theo đúng format 7 trường. Cách phục hồi đã kiểm chứng thì agent tự ghi được. Bài học đụng business rule, mở rộng quyền hoặc đổi tiêu chí Pass thì ghi `chờ xác nhận` và nêu trong report để người dùng duyệt.
+**Gỡ được một blocked bằng cách mới** → ghi vào mục "Cập nhật flow" trong report (dấu hiệu, cách xử lý, cách xác minh). Cách đụng business rule, mở rộng quyền hoặc đổi tiêu chí Pass thì nêu để người dùng duyệt.
 
 ## Công thức Playwright cho giới hạn tool
 
@@ -197,7 +197,7 @@ Ghi kết quả preflight ở đầu báo cáo. Một lần hỏi duy nhất; vi
 - `list_tasks` → tìm task theo id người dùng đưa. Output có thể vượt giới hạn → đọc file kết quả bằng `python3`/`jq`, đừng đọc thẳng.
 - `list_test_cases` với `taskId` → đọc **toàn bộ** case: title, priority, steps, expectedResult, status, và các note `PO/DEV confirm`.
 - Đọc kỹ `notes` của task: thường có test data đã dựng sẵn (campaign/artwork id, layer, tài khoản), phần blocked đã biết, và bối cảnh issue.
-- Đọc `rules/env-capabilities.md` (giới hạn môi trường, store nào cho case nào) và `rules/tib-product-behaviors.md` (hành vi đã xác nhận). Đọc `.claude/flows/README.md` khi cần thao tác portal.
+- Đọc guide (`../qa-knowledge/products/teeinblue/_product-guide.md`) và `rules/tib-product-behaviors.md` (hành vi đã xác nhận). Khi cần thao tác portal, đọc `README.md` trong `../qa-knowledge/products/teeinblue/_flows/` rồi đúng file theo chủ đề.
 - Chạy qua `qa-issue-run` thì đọc thêm `runs/<KEY>/decisions.md` (đáp án PO cho `Q`/`A`) và `runs/<KEY>/testcases.json`; cuối lượt ghi `runs/<KEY>/results.md` (= báo cáo cuối).
 
 ### 2. Xác minh môi trường TRƯỚC KHI chạy case nào
@@ -266,4 +266,4 @@ Vì chỉ message cuối được trả về, báo cáo phải tự đứng đư
 5. **Bug phát hiện** (nếu có) — chỉ mô tả cái quan sát được, kèm đường dẫn screenshot tương ứng.
 6. **Câu hỏi cần PO/DEV/người dùng chốt.** Tách 2 nhóm: câu đã hỏi sớm (đang chặn nhánh nào), và câu không gấp.
 7. **Kết quả `R finish <run-id>`**, dán nguyên văn: dữ liệu giữ lại (ID/link/owner), thay đổi tạm thời đã khôi phục (kèm cách xác minh), phần CHƯA khôi phục được và lượt nào bị chặn vì nó.
-8. **Bài học vận hành:** blocked nào đã tự phục hồi theo L-xxx (kèm bằng chứng), bài học mới đã ghi (`đã kiểm chứng` / `chờ xác nhận` cần người dùng duyệt), và các dòng đã cập nhật trong `.claude/tib-reusable-test-data.md`.
+8. **Cập nhật flow:** blocked nào đã tự phục hồi (kèm bằng chứng), cách gỡ hoặc thao tác mới cần đưa vào khối C của CCR, và các dòng đã cập nhật trong `.claude/tib-reusable-test-data.md`.

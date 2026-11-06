@@ -20,7 +20,7 @@ Input chính là **bản Requirement Analysis** (skill `qa-requirement-analysis`
 
 Chưa có bản phân tích mà chỉ có Jira issue → đọc issue và tự xác định phạm vi; chỉ hỏi (tối đa 1 câu) khi không xác định được **module/tính năng** cần test. Không hỏi "phạm vi happy path hay negative" — phạm vi do business rule và rủi ro quyết định.
 
-Với teeinblue (repo `teeinblue-manual`): đọc `rules/env-capabilities.md` (gắn nhãn `env-blocked` / vế không kiểm được) và `rules/tib-product-behaviors.md` (hành vi đã xác nhận, dùng làm nguồn expected).
+Với teeinblue (repo `teeinblue-manual`): đọc guide mục 4 và `environment_differences` trong `runs/<KEY>/context.md` (gắn nhãn `env-blocked` / vế không kiểm được) và `rules/tib-product-behaviors.md` (hành vi đã xác nhận, dùng làm nguồn expected).
 
 ## Quy tắc tạo test case (AI Guardrails)
 
@@ -57,7 +57,7 @@ Hai nhãn khác nhau, đừng lẫn:
 | Nhãn | Nghĩa | Khi execute |
 |---|---|---|
 | **`expected-unconfirmed`** | Expected Result chưa có nguồn xác nhận (suy luận, hành vi hiện tại, case đề xuất thêm) | **Vẫn chạy**, ghi lại hành vi thực tế; không log bug; kết luận chờ PO/Dev |
-| **`env-blocked`** | Cả case không chạy được trên môi trường QA (theo `rules/env-capabilities.md`, vd tracking từ provider) | **Không chạy**. Tạo với `status: skipped`, `actualResult` = lý do + nguồn |
+| **`env-blocked`** | Cả case không chạy được trên môi trường QA (theo guide mục 4, vd tracking từ provider) | **Không chạy**. Tạo với `status: skipped`, `actualResult` = lý do + nguồn |
 
 - Case dựa trên assumption hoặc câu hỏi chưa trả lời → thêm mã `A1`/`Q1` vào nhãn (vd `expected-unconfirmed, A2`). Khi PO trả lời, chỉ sửa các case mang mã đó.
 - Chỉ **một vế** của expected không kiểm được trên môi trường QA → **không** gắn `env-blocked`. Bỏ vế đó khỏi expected hoặc ghi `Vế X: skip — <lý do>`, case vẫn chạy.
@@ -229,7 +229,7 @@ Test case **không gắn trực tiếp vào project** — phải qua một Task 
 | `expectedResult` | `Expected Result` | HTML (`<p>...</p>`) |
 | `priority` | `Priority` | Testlane chỉ có `Low/Medium/High` → **map `Critical` → `High`**; High→High, Medium→Medium, Low→Low |
 | `status` | `Labels` | Mặc định `not-run`. Case `env-blocked` → `skipped` |
-| `actualResult` | — | Chỉ case `env-blocked`: `<p>env-blocked: <lý do> (nguồn: rules/env-capabilities.md)</p>` |
+| `actualResult` | — | Chỉ case `env-blocked`: `<p>env-blocked: <lý do> (nguồn: guide mục 4)</p>` |
 | `fields` | `Scope ref`, `Labels` | `[{name: "Scope ref", value: "<p>BR2</p>"}, {name: "Labels", value: "<p>expected-unconfirmed, A2</p>"}]` (Labels chỉ khi có nhãn) |
 
 `Module`, `Notes` không có field riêng trên Testlane:

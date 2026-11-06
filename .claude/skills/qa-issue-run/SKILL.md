@@ -11,13 +11,13 @@ Mục tiêu: người dùng chỉ phải xem **2 lần** — Gate 1 (câu hỏi)
 
 | File | Dùng để |
 |---|---|
-| `rules/env-capabilities.md` | Cái gì test được ở store/instance nào; gắn `env-blocked` sớm |
+| `../qa-knowledge/products/teeinblue/_product-guide.md` | Bản đồ, store, giới hạn test; gắn `env-blocked` sớm |
 | `rules/tib-product-behaviors.md` | Quyết định đã chốt → Self-resolved |
 | `../qa-knowledge` qua `scripts/tib/kb_context.mjs` → `runs/<KEY>/context.md` | Knowledge của feature (chỉ item `CONFIRMED_EXPECTED` là oracle) |
 | `.claude/testlane-status-sync.md` mục 0 | Project Testlane `TIB` = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab`; Testlane chỉ cho task/case, không đọc context ở đó |
 | `.claude/tib-reusable-test-data.md` | Data đặc thù có sẵn |
-| `.claude/tib-operational-lessons.md` | Cách tự phục hồi blocked đã gặp |
-| `.claude/flows/README.md` | Thao tác portal |
+| `_flows/troubleshooting.md` | Cách gỡ block đã gặp |
+| `../qa-knowledge/products/teeinblue/_flows/` | Cách thao tác, đọc `README.md` rồi đúng file theo chủ đề |
 | `scripts/tib_runctl.py` | Nhật ký lượt chạy, giữ quyền tài nguyên dùng chung |
 | Skill `qa-requirement-analysis`, `gen-testcase`, `create-test-data`; agent `tib-test-data`, `tib-execute-testcase` | Từng bước — skill này chỉ điều phối |
 
@@ -36,7 +36,7 @@ Mục tiêu: người dùng chỉ phải xem **2 lần** — Gate 1 (câu hỏi)
 | `results.md` | tib-execute-testcase | Báo cáo execute (= Gate 2 của issue) |
 | `timeline.jsonl` | `scripts/issue_timing.py` | Mốc thời gian từng bước làm / chờ (chỉ ghi nối thêm) |
 
-`phase` lần lượt: `init → analyzed → cases-created → gate1 → data-ready → preflight → executing → done → prod-ready → prod-verified → ccr-attached → (done) | prod-failed`.
+`phase` lần lượt: `init → analyzed → cases-created → gate1 → data-ready → preflight → executing → done → prod-ready → prod-verified → ccr-attached → (done) | prod-failed | prod-not-run`.
 
 **Chạy tiếp khi bị ngắt:** đọc `state.json`, **đối chiếu Testlane trước** (`.claude/testlane-status-sync.md` mục 3), bắt đầu lại từ phase đang dở; file của phase đã xong thì dùng lại, không làm lại. Phase `executing` bị ngắt → lượt mới gọi `R start` sẽ hiện `pending` của lượt cũ; agent execute xử lý theo quy tắc khôi phục.
 
@@ -57,6 +57,7 @@ Mỗi bước ghi `start` ngay trước khi bắt đầu và `end` ngay khi xong
 | P4 Preflight | `T start <KEY> preflight` | `T end <KEY> preflight` |
 | Chờ người dùng làm tay (login/2FA, config store) | `T wait-start <KEY> user-action --note "<việc>"` | `T wait-end <KEY> user-action` |
 | Chờ Dev deploy bản fix | `T wait-start <KEY> deploy` | `T wait-end <KEY> deploy` |
+| Chờ job nền staging (admin import artwork, render, sync) | `T wait-start <KEY> staging-job --note "<job + id>"` (lúc job được tạo) | `T wait-end <KEY> staging-job` (lúc job xong, hoặc `--note "kẹt, báo Dev"` khi bỏ chờ) |
 | P5 Execute (agent tự ghi) | `T start <KEY> execute` | `T end <KEY> execute` |
 | Chờ người dùng review render | `T wait-start <KEY> render-review` (lúc gửi Gate 2) | `T wait-end <KEY> render-review` (lúc người dùng duyệt xong) |
 | Gate 2 báo cáo | `T start <KEY> report` | `T end <KEY> report` (= issue xong) |
@@ -111,7 +112,7 @@ Agent ghi `results.md`, đối chiếu status case với Testlane và đặt sta
 Task kết thúc execute ở `ready-to-deploy` (sau Gate 2 nếu có review render) → gọi agent `tib-prod-verify` chế độ **author** (prompt: key, `runs/<KEY>/`). Agent chọn happy case, viết spec theo object ở `tests/prod/`, dựng fixture, chạy pass trên staging. `phase = prod-ready`. Task `waiting-for-dev` thì chưa làm P6 — làm khi chạy lại và đạt `ready-to-deploy`.
 
 ### Sau deploy — verify production (người dùng gọi trong chat)
-Người dùng báo "đã deploy TIB-a, TIB-b" (Dev báo trên Slack) → gọi `tib-prod-verify` chế độ **verify** với **cả danh sách** một lần (runner gộp spec, bỏ trùng, chạy song song). Pass hết → agent soạn CCR, đính vào task, submit (P7), rồi mới đặt `done`; chưa submit được thì task giữ `ready-to-deploy`. Còn fail → `waiting-for-dev`. Proposal để ở `Todo`, người dùng tự kéo sang `In Progress`. Task chưa có P6 → làm P6 trước (author) rồi verify. `phase = prod-verified` / `ccr-attached` / `prod-failed`.
+Người dùng báo "đã deploy TIB-a, TIB-b" (Dev báo trên Slack) → gọi `tib-prod-verify` chế độ **verify** với **cả danh sách** một lần (runner gộp spec, bỏ trùng, chạy song song). Pass hết → agent soạn CCR, đính vào task, submit (P7), rồi mới đặt `done`; chưa submit được thì task giữ `ready-to-deploy`. Còn fail → `waiting-for-dev`. Proposal để ở `Todo`, người dùng tự kéo sang `In Progress`. Task chưa có P6 → làm P6 trước (author) rồi verify. `phase = prod-verified` / `ccr-attached` / `prod-failed` / `prod-not-run` (chưa kết luận: thiếu fixture/session — task giữ `ready-to-deploy`).
 
 ### Gate 2 — báo cáo cuối
 Đầu báo cáo mỗi issue có dòng `Testlane: N case khớp, M ghi bù, K giữ theo người dùng; task <id> → <status>`. Người dùng trả lời review render / quyết định case → cập nhật case đó rồi tính lại status task.

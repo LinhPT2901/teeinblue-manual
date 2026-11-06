@@ -42,8 +42,8 @@ Nếu `.env` không tồn tại hoặc thiếu biến → dừng, báo người 
 `python3 scripts/issue_timing.py start <KEY> data` trước khi bắt đầu, `... end <KEY> data --note "<tóm tắt>"` khi xong (kể cả dừng giữa chừng). Chờ người dùng làm tay → `wait-start/wait-end <KEY> user-action`.
 
 ### 1. Đọc flow notes và rules trước khi làm
-Luôn đọc `.claude/flows/README.md` đầu tiên, rồi file flow tương ứng trong `.claude/flows/`. Đây là selector/label/bước đã verify của portal. Làm theo nó thay vì tự mò lại từ đầu.
-Đọc `rules/env-capabilities.md` (store/instance nào cho case nào, giới hạn MCP) và `rules/tib-product-behaviors.md` (cấu hình đúng để data không gây fail giả, vd populate target "Create a new option", Multiple Outputs cần layer populate).
+Luôn đọc `README.md` trong `../qa-knowledge/products/teeinblue/_flows/` đầu tiên, rồi file đúng chủ đề. Đây là selector/label/bước đã verify của portal. Làm theo nó thay vì tự mò lại từ đầu.
+Đọc guide mục 3, 4 (`../qa-knowledge/products/teeinblue/_product-guide.md`), `_flows/environment.md` (giới hạn MCP) và `rules/tib-product-behaviors.md` (cấu hình đúng để data không gây fail giả, vd populate target "Create a new option", Multiple Outputs cần layer populate).
 
 ### 1b. Chọn đường dựng data
 
@@ -60,7 +60,7 @@ Ghi rõ trong báo cáo + ledger mỗi item tạo bằng đường nào.
 
 Nếu cần **data đặc thù** (account không Mapbox, store Plus, victim org, onboarding chưa connect fulfillment, campaign/product trạng thái hiếm...) → tra `.claude/tib-reusable-test-data.md` trước khi đi tìm. **Xác minh lại trước khi dùng** (mở link/ID, kiểm trạng thái), chỉ sửa khi cột "Được sửa?" cho phép. Sau khi dùng chỉ cập nhật thông tin có thay đổi hoặc vừa xác minh (không ghi nhật ký từng lần). Tìm được data đặc thù mới thì thêm dòng; tìm không ra thì ghi đã tìm ở đâu, lúc nào vào mục "Đã tìm, chưa có". Mục đó chỉ để tránh tìm lại ngay, **không phải kết luận là data không tồn tại**.
 
-Gặp lỗi khi dựng data → tra `.claude/tib-operational-lessons.md` theo Dấu hiệu + Phạm vi, làm đúng "Quy trình dùng" ở đầu file. Khớp và còn đúng thì tự phục hồi, ghi "phục hồi theo L-xxx" + bằng chứng, không hỏi lại. Gỡ được lỗi bằng cách mới thì thêm bản ghi đủ 7 trường. Bài học đụng business rule, mở rộng quyền hay đổi tiêu chí Pass thì ghi `chờ xác nhận`.
+Gặp lỗi khi dựng data → tra `_flows/troubleshooting.md` theo dấu hiệu. Khớp thì tự phục hồi, ghi "phục hồi theo <mục>" kèm bằng chứng, không hỏi lại. Gỡ được lỗi bằng cách mới thì ghi vào mục "Cập nhật flow" trong report. Cách đụng business rule, mở rộng quyền hoặc đổi tiêu chí Pass thì hỏi người dùng trước.
 
 **Nhật ký lượt + giữ quyền (bắt buộc, kể cả chạy một mình):** dùng `python3 scripts/tib_runctl.py` đúng như mục "Nhật ký lượt chạy + giữ quyền tài nguyên" trong `.claude/agents/tib-execute-testcase.md`:
 - `start` đầu lượt và xử lý `pending`.
@@ -175,7 +175,7 @@ variant): đặt tên artwork `<title issue> - artwork 1`, `<title issue> - artw
 
 Chi tiết đầy đủ selector/bước/cạm bẫy (dialog chọn Shopify product, Mockup Editor, Assign mockups,
 blocker Online Store channel): xem mục **"Flow: Campaign 'by Shopify Products'"** trong
-`.claude/flows/` (xem README).
+`../qa-knowledge/products/teeinblue/_flows/` (xem README).
 
 ### 6. Verify (không được bỏ)
 Data chỉ được coi là "đã tạo" khi:
@@ -187,7 +187,7 @@ Ghi lại **ID** và **URL** của item (lấy từ URL chi tiết, ví dụ `/c
 Nếu verify fail: báo thẳng là fail kèm chi tiết, không được báo cáo là đã tạo xong.
 
 ### 7. Cập nhật flow notes
-Nếu trong lúc làm bạn phát hiện bước/selector/label khác với file flow trong `.claude/flows/` (hoặc chưa có file cho flow này), sửa/tạo đúng file flow đó và cập nhật `.claude/flows/README.md` để lần sau chạy nhanh hơn. Ghi ngắn gọn: đường dẫn, thứ tự bước, tên nút/field đúng như trên UI.
+Nếu trong lúc làm bạn phát hiện bước/selector/label khác với flow, hoặc chưa có flow, ghi vào mục "Cập nhật flow" trong report: đường dẫn, thứ tự bước, tên nút/field đúng như trên UI. Không sửa repo knowledge; nội dung này đi vào khối C của CCR.
 
 ### 8. Ghi ledger + data.json
 
@@ -229,4 +229,4 @@ Kèm:
 - Chỉ publish khi người dùng yêu cầu rõ ràng. Trên production, store đích luôn là `linh-tib-prod.myshopify.com`. Trên staging, **store đích luôn là `linh-tib-staging.myshopify.com`** — không publish sang store nào khác, kể cả store của instance đang active (`linh-boundless.com`). Nếu store `linh-tib-staging.myshopify.com` không có trong danh sách chọn khi launch → dừng và báo, đừng chọn store thay thế.
 - Không in credentials, token, cookie ra output.
 - Không sửa data đang có sẵn để "tiện" — luôn tạo mới.
-- **Không giả định giá trị mặc định của field.** Shop có `default_value` riêng (vd `default_value: { show_in_cart: true }`) nên layer mới có thể sinh ra với toggle đã bật sẵn. Sau khi tạo layer, **đọc lại giá trị thật** rồi mới set theo spec, và **ghi giá trị mặc định quan sát được vào báo cáo** để QA không báo nhầm bug. Xem Rule 14 trong `.claude/flows/` (xem README).
+- **Không giả định giá trị mặc định của field.** Shop có `default_value` riêng (vd `default_value: { show_in_cart: true }`) nên layer mới có thể sinh ra với toggle đã bật sẵn. Sau khi tạo layer, **đọc lại giá trị thật** rồi mới set theo spec, và **ghi giá trị mặc định quan sát được vào báo cáo** để QA không báo nhầm bug. Xem Rule 14 trong `_flows/qa-rules.md`.

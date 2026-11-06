@@ -1,5 +1,7 @@
 # Quyết định sản phẩm teeinblue đã chốt
 
+**Đóng băng từ 2026-11-05:** không thêm mục mới vào file này. Quyết định mới ghi vào mục 15 "BR cho CCR" của analysis. File còn được đọc tới khi CCR backfill publish.
+
 Chỉ chứa hành vi **by design** hoặc phạm vi đã được người dùng / PO / Dev chốt. Đây là nguồn cho bậc "rules/" trong thang quyết định của `qa-requirement-analysis`: câu hỏi nào trả lời được bằng file này thì ghi `Self-resolved (nguồn: rules/tib-product-behaviors.md#<mục>)`, không hỏi lại.
 
 File này là một trong 3 lớp, mỗi lớp trả lời một câu hỏi khác nhau:
@@ -37,6 +39,9 @@ File này là một trong 3 lớp, mỗi lớp trả lời một câu hỏi khá
 
 - Danh sách và tên ngôn ngữ đồng bộ từ Shopify; Portal không có UI add/rename/xoá ngôn ngữ → không sinh case này. (người dùng 2026-10-30, TIB-5585)
 - Lỗi Export → Import CSV có sẵn từ production: export bọc mọi ô trong `"..."`, import không bỏ ngoặc → sinh key mới. Ngoài scope các ticket trim/whitespace; khi test import dùng CSV không bọc ngoặc. (TIB-5585)
+- **Import to Translation với date layer:** layer Global Option phải gợi ý key format như layer thường. (người dùng 2026-11-04, TIB-5608)
+- Key dịch placeholder date picker: chỉ key format viết thường có tác dụng (`dd.mm.yyyy`); `DD.MM.YYYY`, `dd.MM.yyyy` không áp. (người dùng 2026-11-05, TIB-5608)
+- Entry `mm/dd/yyyy` đổi cả placeholder của Calendar và Moon Phase, dù Import không gợi ý key này cho hai layer đó; ngày chọn và design không đổi. (người dùng 2026-11-05, TIB-5608)
 - **JSON List:** Dynamic Translations chỉ dịch label; item trong dropdown (`name`) luôn giữ text gốc. Không viết case "translated JSON List value". (người dùng 2026-10-26, TIB-5583)
 
 ## Asset, library, upload
@@ -53,7 +58,7 @@ File này là một trong 3 lớp, mỗi lớp trả lời một câu hỏi khá
   - AVIF bị chặn là do issue khác.
   - Addon charge thumbnail: xoá rồi upload lại, không có nút replace. Shopify Listing Product Thumbnail lưu ngay khi chọn/xoá (hành vi cũ).
   - MCP library upload max 64 MB.
-  - Search library: mốc = production image layer library, `name _ilike "%term%"` (chứa chuỗi, không phân biệt hoa thường, ký tự hiểu theo nghĩa đen).
+  - Search library: mốc = production image layer library, `name _ilike "%term%"` (chứa chuỗi, không phân biệt hoa thường, ký tự hiểu theo nghĩa đen). Riêng tách từ theo `-`/`_` (từ khoá có gạch ngang khớp cả tên chứa các từ rời, vd `og-b` ra bg-sea) được người dùng chấp nhận 2026-11-02 (TIB-5192).
 
 ## Fulfillment, order
 

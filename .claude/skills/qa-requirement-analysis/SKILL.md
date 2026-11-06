@@ -25,16 +25,14 @@ Trước mỗi lần phân tích issue mới, kiểm tra thư mục `rules/` n�
 - Đọc các rule phù hợp với issue/module/keyword đang phân tích. Ví dụ: issue liên quan đến variants, product options, SKU, price, weight, update campaign thì đọc `rules/variant.md` nếu có.
 - Chỉ áp dụng rule khi rule liên quan trực tiếp đến input. Không ép mọi rule vào mọi analysis.
 - Khi dùng rule, vẫn phải phân biệt rõ thông tin đã xác nhận trong issue với assumption hoặc best-practice từ rule.
-- Nếu phát hiện một pattern/rule quan trọng chưa có file tương ứng trong `rules/`, tạo file mới trong `rules/` với tên kebab-case ngắn gọn, ví dụ `rules/variant.md`, rồi dùng rule đó cho analysis hiện tại.
-- Rule file nên ngắn, tập trung vào business/QA heuristics có thể tái sử dụng: context cần nhận diện, requirement cần kiểm tra, impacted areas, risks, open questions, và suggested test focus.
+- **Không tạo hay sửa rule local** (`rules/` của skill, `rules/` của repo). Pattern hoặc quyết định mới ghi vào mục 15 "BR cho CCR" của bản phân tích, rồi đi vào knowledge qua CCR.
 
 ## Kiến thức của repo (teeinblue)
 
 Khi phân tích issue teeinblue (làm trong repo `teeinblue-manual`), nội dung issue đọc từ Jira; **không** đọc context trên Testlane (`get_project_context`, `search_knowledge`). Đọc thêm:
-- **Knowledge của feature** (repo `qa-knowledge`, clone ở `../qa-knowledge`): đọc xong ticket thì chọn key ứng viên (`node scripts/tib/sync_objects.mjs --list` / `--show`, cách chọn ở mục 7), rồi chạy `node scripts/tib/kb_context.mjs <KEY> <object/feature> ...` (tự `git pull`). Script ghi `runs/<KEY>/context.md`: chỉ item của feature đã chọn + item cấp object + item liên quan, tách sẵn "Dùng được làm expected" và "Quan sát". Chỉ đọc file đó, không mở nguyên thư mục knowledge, không đọc `open-questions.md` (grep theo topic nếu cần). Key bị thiếu trong knowledge thì script ghi vào mục "Knowledge gap"; chép mục đó vào analysis, vì đó là đầu vào CCR sau khi verify production. Chọn lại key ở mục 7 thì chạy lại script.
+- **Knowledge của feature** (repo `qa-knowledge`, clone ở `../qa-knowledge`): đọc xong ticket thì chọn key ứng viên (`node scripts/tib/sync_objects.mjs --list` / `--show`, cách chọn ở mục 7), rồi chạy `node scripts/tib/kb_context.mjs <KEY> <object/feature> ...` (tự `git pull`). Script ghi `runs/<KEY>/context.md`: chỉ item của feature đã chọn + item cấp object + item liên quan, tách sẵn "Dùng được làm expected" và "Quan sát". Chỉ đọc file đó, không mở nguyên thư mục knowledge, không đọc `open-questions.md` (grep theo topic nếu cần). `context.md` có sẵn Phần A của `_product-guide.md` (object, store theo việc, index giới hạn môi trường, bẫy, mutation guard), đọc ở đầu file. Key bị thiếu trong knowledge thì script ghi vào mục "Knowledge gap"; chép mục đó vào analysis, vì đó là đầu vào CCR sau khi verify production. Chọn lại key ở mục 7 thì chạy lại script.
 - `rules/tib-product-behaviors.md` — quyết định đã được PO/Dev/người dùng chốt (by design, phạm vi đã chốt). Knowledge phần lớn mới là quan sát, nên file này vẫn là nguồn chính cho câu hỏi đúng/sai và thuộc scope hay không.
-- `.claude/flows/` — cách dùng app (màn nào, thao tác gì, nhìn vào đâu để biết kết quả); đọc `README.md` rồi file đúng chủ đề khi cần hiểu flow để viết bước test hoặc setup.
-- `rules/env-capabilities.md` — cái gì test được trên store/instance nào, cái gì không test được. Dùng cho mục Impacted Areas / Risks, và để đánh dấu sớm phần **không test được trên staging** (mục 10).
+- Không test được gì, store nào cho việc gì: mục 3, 4 của guide trong `context.md`. Dùng cho Impacted Areas, Risks, mục 10.
 - `.claude/tib-reusable-test-data.md` — data đặc thù có sẵn (account, store, campaign trạng thái hiếm).
 
 ## Thang quyết định — tự trả lời trước khi hỏi
@@ -153,7 +151,7 @@ Rủi ro QA/testing và rủi ro sản phẩm.
 Mỗi điểm đã tự trả lời: câu hỏi → câu trả lời → `Self-resolved (nguồn: …)`.
 
 ### 10. Environment Limits
-Phần không test được trên môi trường QA (theo `rules/env-capabilities.md`): case-level (`env-blocked`) hay chỉ một vế, và lý do.
+Phần không test được trên môi trường QA (theo guide mục 4 và `environment_differences` trong `context.md`): case-level (`env-blocked`) hay chỉ một vế, và lý do.
 
 ### 11. Assumptions
 | Mã | Giả định | Căn cứ | Khu vực / case phụ thuộc |
@@ -171,6 +169,13 @@ Khu vực test QA nên tập trung. Security/Performance chỉ nêu khi mục Ri
 
 ### 14. Readiness Score
 Ready / Partially Ready / Not Ready — kèm lý do. **Ready** = không còn câu blocking (assumption không blocking vẫn được).
+
+### 15. BR cho CCR
+Quyết định đã có người xác nhận (PO, Dev hoặc QA) mà knowledge chưa có hoặc đang ghi khác. Đây là chỗ duy nhất lưu quyết định mới, bước CCR lấy claim từ đây. Bỏ qua BR đã có trong mục "Dùng được làm expected" của `context.md`. Khi PO/Dev/QA trả lời câu hỏi blocking thì thêm vào bảng này.
+| Mã BR | Statement | object/feature | Người xác nhận | Ngày nguồn | Trích nguyên văn | `kb_id` mâu thuẫn |
+|---|---|---|---|---|---|---|
+| BR1 | … | … | … | … | … | … |
+Trích đúng câu gốc, ngày là ngày comment hoặc ngày chốt (không phải ngày resolve ticket). Không có mục nào thì ghi "Không có".
 ```
 
 ## Tiêu chí đánh giá mức độ sẵn sàng (Readiness criteria)

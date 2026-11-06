@@ -6,7 +6,7 @@
  *   node scripts/tib/kb_context.mjs <KEY> ... --checklists                   # thêm tiêu đề check (gen-testcase, regression)
  *   node scripts/tib/kb_context.mjs <KEY> ... --no-pull                      # không git pull repo knowledge
  *
- * Chọn key trước bằng sync_objects.mjs --show (theo phạm vi, không theo tên). Mỗi key:
+ * Đầu file luôn có _product-guide.md. Chọn key trước bằng sync_objects.mjs --show (theo phạm vi, không theo tên). Mỗi key:
  *   object/feature → item kb.json của feature + item kb.json cấp object + item nối qua related_kb_ids (1 bước)
  *   object         → item kb.json cấp object + danh sách feature kèm user_goal (chưa tải item)
  *   key local      → ghi "knowledge gap" (ứng viên CCR ở P7)
@@ -61,6 +61,8 @@ const line = i => {
 
 const out = [`# Knowledge context — ${KEY}`, '', `Nguồn: qa-knowledge @ ${commit} · sinh ${new Date().toISOString().slice(0, 10)} · key: ${keys.join(', ')}`, '',
   'Chỉ mục "Dùng được làm expected" là oracle. Mục "Quan sát" chỉ để tìm vùng regression và biết feature có surface nào — dùng làm expected cho một task đang đổi chính hành vi đó là sai.', ''];
+const guideFile = path.join(KDIR, '_product-guide.md');
+if (fs.existsSync(guideFile)) out.push(fs.readFileSync(guideFile, 'utf8').trim(), '');
 const gaps = [];
 for (const k of keys) {
   const [o, f] = k.split('/');
@@ -84,6 +86,7 @@ for (const k of keys) {
   } else {
     const p = profileOf(o, f);
     if (p) out.push(`Mục tiêu: ${p.user_goal}`, `Capability: ${(p.capabilities || []).map(c => c.name).join(' · ')}`, `Entry point: ${(p.entry_points || []).map(e => e.path).join(' · ')}`, '');
+    if (p?.environment_differences?.length) out.push('Khác biệt môi trường:', ...p.environment_differences.map(d => `- ${d.type}: ${d.summary || d.statement || ''}${d.how_to_test ? ` — cách test: ${d.how_to_test}` : ''}`), '');
     picked = [...items.values()].filter(i => i.where === `${o}/${f}` || i.where === o);
     const ids = new Set(picked.map(i => i.kb_id));
     for (const i of [...picked]) for (const r of i.related_kb_ids || []) if (!ids.has(r) && items.has(r)) ids.add(r), picked.push(items.get(r));

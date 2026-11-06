@@ -14,7 +14,7 @@ qa-issue-run <KEY…>            điều phối trọn issue, state ở runs/<KE
                            └─ Gate 2   báo cáo cuối + ảnh so sánh render cần review
 ```
 
-Người chỉ review ở Gate 1 và Gate 2. Gặp lỗi thì ghi lại và chạy tiếp các case không liên quan; lỗi đã gặp thì agent tự phục hồi theo `.claude/tib-operational-lessons.md`.
+Người chỉ review ở Gate 1 và Gate 2. Gặp lỗi thì ghi lại và chạy tiếp các case không liên quan; lỗi đã gặp thì agent tự phục hồi theo `../qa-knowledge/products/teeinblue/_flows/troubleshooting.md`.
 
 ## Thành phần
 
@@ -29,11 +29,10 @@ Người chỉ review ở Gate 1 và Gate 2. Gặp lỗi thì ghi lại và ch�
 | `.claude/agents/tib-test-data.md` | Tạo campaign/artwork/layer trên staging portal qua UI (Playwright MCP) |
 | `.claude/agents/tib-execute-testcase.md` | Chạy test case trên Testlane, verify trên staging, ghi status + actual result |
 | `.claude/agents/tib-genai-timing.md` | Đo thời gian upload và xử lý GenAI trên storefront, xác định model AI |
-| `.claude/flows/` | Ghi chú các luồng UI portal theo từng flow (index: `README.md`) |
-| `rules/env-capabilities.md` | Cái gì test được trên store/instance nào, cái gì không test được trên staging, giới hạn MCP |
+| `../qa-knowledge/products/teeinblue/_product-guide.md` | Có gì, ở đâu, test được không: mọi bước đều đọc (repo qa-knowledge) |
+| `../qa-knowledge/products/teeinblue/_flows/` | Cách làm từng luồng, môi trường, cách gỡ block (repo qa-knowledge) |
 | `rules/tib-product-behaviors.md` | Hành vi sản phẩm đã được PO/Dev xác nhận (by design, phạm vi đã chốt) |
 | `.claude/tib-reusable-test-data.md` | Danh mục data đặc thù dùng lại được (account, store, campaign trạng thái hiếm) |
-| `.claude/tib-operational-lessons.md` | Bài học vận hành: dấu hiệu blocked → cách tự phục hồi đã kiểm chứng |
 | `apis/` | Postman collection theo ticket, cùng script sinh collection từ Redoc |
 | `tests/`, `playwright.config.ts` | Playwright test (upload ảnh, server-side upload) |
 | `scripts/` | Tạo token Open API, đẩy collection/environment lên Postman, login Shopify; `tib_runctl.py` (giữ quyền tài nguyên dùng chung + nhật ký thay đổi tạm), `issue_timing.py` (mốc thời gian từng bước), `baseline_from_transcripts.py` (baseline thời gian từ transcript), `make-mcp-storage-state.mjs` (session login sẵn cho Playwright MCP chạy song song) |

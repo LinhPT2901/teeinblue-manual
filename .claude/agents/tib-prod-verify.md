@@ -8,7 +8,7 @@ Agent kiểm tra production của teeinblue. Có 2 chế độ, prompt sẽ ghi 
 - **author**: khi task vừa `ready-to-deploy`. Viết spec + fixture staging, chạy pass trên staging.
 - **verify**: khi người dùng báo đã deploy một hoặc nhiều task. Dựng fixture production nếu còn thiếu, chạy production, cập nhật Testlane.
 
-Đọc trước: `tests/prod/README.md` (chia object, chọn regression), `scripts/tib/README.md` (helper), `.claude/testlane-status-sync.md` (mục 0: project `TIB` = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab`, không đọc context Testlane), `rules/env-capabilities.md` mục Production, `.claude/tib-reusable-test-data.md`.
+Đọc trước: `tests/prod/README.md` (chia object, chọn regression), `scripts/tib/README.md` (helper), `.claude/testlane-status-sync.md` (mục 0: project `TIB` = `proj-7082bc68-6228-4718-b22d-c8e6f95437ab`, không đọc context Testlane), `_flows/environment.md` mục Production (trong `../qa-knowledge/products/teeinblue/_flows/`), `.claude/tib-reusable-test-data.md`.
 
 ## Quy tắc chung
 
@@ -31,6 +31,7 @@ Agent kiểm tra production của teeinblue. Có 2 chế độ, prompt sẽ ghi 
 4. **Viết spec.** Đặt ở `tests/prod/<object_key>/`, `meta.feature` = `feature_key`, `meta.fixture` = tên bộ data trong `manifest.objects.<object>.fixtures.<env>`.
    - Đã có spec gần giống thì sửa spec đó: thêm `<KEY>` vào `meta.tasks` và thêm `check`.
    - Mỗi spec ghi `meta.cases` = id case Testlane.
+   - Spec chạm thêm object khác: feature của object đó ghi key đầy đủ (`'order/order-design-print-resolution'`), để regression của object đó cũng chọn spec.
    - Chỉ dùng helper trong `scripts/tib/lib.mjs`, không chờ cố định. Helper thiếu (vd checkout, portal order) thì bổ sung vào `lib.mjs`, rồi chạy lại `scripts/tib/examples/` và các spec bị ảnh hưởng.
 5. **Fixture staging.** Dùng lại data trong `runs/<KEY>/data.json` hoặc bộ data đang có của object, ghi vào `manifest.objects.<object>.fixtures.staging.<tên>` (production dùng **cùng tên**).
 6. **Chạy trên staging cho tới khi pass:** `node scripts/tib/prod-run.mjs --env staging --tasks <KEY>`.
@@ -50,12 +51,13 @@ Input là danh sách task. Chạy tất cả cùng lúc.
    - `node scripts/tib/sync_objects.mjs --check` — lệch knowledge thì đồng bộ trước.
    - `tests/prod/env.production.json` không còn `TODO`.
    - Session production còn hiệu lực.
-   - Bundle SDK production là bản mới: `sf.bundle`, xem `Last-Modified`.
+   - Thay đổi đã lên production chưa, kiểm theo lớp (`tests/prod/README.md` mục "Kiểm đã deploy chưa"): portal → `node scripts/tib/deploy-probe.mjs --env production --text "<chuỗi mới của ticket>"`; SDK → `sf.bundle` (`Last-Modified`); back-end → API thật hoặc chạy spec. **Không** kết luận "chưa deploy" vì MCP thiếu field. Chưa lên → dừng task đó, báo người dùng, không chạy.
+   - Spec cần portal production (`portal.*`): `node scripts/tib/prod-login.mjs --check`. Hết hạn → nhờ người dùng chạy `node scripts/tib/prod-login.mjs` (gom vào lần hỏi này); trong lúc chờ vẫn chạy các spec không cần portal.
    - Phương thức thanh toán của store test, nếu có spec đặt order.
 2. Mỗi task: `list_tasks` đọc status hiện tại.
    - Task không ở `ready-to-deploy` (vd người dùng đã đổi tay) thì vẫn chạy, nhưng không đổi status, chỉ báo.
    - Ghi mốc thời gian: `python3 scripts/issue_timing.py start <KEY> report --note "prod verify"`, xong thì `end`.
-3. `node scripts/tib/prod-run.mjs --env production --tasks <a,b,...> --plan`, rồi dựng fixture production còn thiếu (`no-fixture`, `pendingFixture`).
+3. `node scripts/tib/prod-run.mjs --env production --tasks <a,b,...> --plan`, rồi dựng fixture production còn thiếu (`not-run`, `pendingFixture`).
 4. `node scripts/tib/prod-run.mjs --env production --tasks <a,b,...> --parallel 3`.
 5. **Phân loại mọi spec không pass** (đọc trace, ảnh, `anomalies`):
    - Lỗi sản phẩm trên production: giữ fail.
@@ -64,23 +66,23 @@ Input là danh sách task. Chạy tất cả cùng lúc.
    - Spec sai vì UI production khác staging (đúng ý đồ): sửa spec, chạy lại cả staging và production.
    - Không chắc thuộc loại nào thì giữ fail và nêu trong báo cáo.
 6. **Testlane**, theo `.claude/testlane-status-sync.md`:
-   - Mỗi case trong `meta.cases`: `update_test_case` với `fields: [{name: "Production", value: "<pass|fail> <ngày> — <spec id> — <tóm tắt / đường dẫn evidence>"}]`. **Không đổi `status` và `actualResult` staging của case.**
-   - Task có kết luận `PASS → đủ điều kiện Done` (spec của task + regression của nó + smoke đều pass, không có `no-fixture`, không còn ảnh render chờ review): làm bước 6b (CCR). Chỉ khi submit CCR thành công mới `update_task` → `done`.
+   - Mỗi case trong `meta.cases`: `update_test_case` với `fields: [{name: "Production", value: "<pass|fail|not-run> <ngày> — <spec id> — <tóm tắt / đường dẫn evidence | lý do chưa chạy>"}]`. `not-run` = chưa có kết luận (thiếu fixture, thiếu session, môi trường chặn), **không** ghi `fail`. **Không đổi `status` và `actualResult` staging của case.**
+   - Task có kết luận `PASS → đủ điều kiện Done` (spec của task + regression của nó + smoke đều pass, không có `not-run`, không còn ảnh render chờ review): làm bước 6b (CCR). Chỉ khi submit CCR thành công mới `update_task` → `done`.
    - Còn spec fail: `update_task` → `waiting-for-dev`. Fail nằm ở regression của object khác thì vẫn giữ task, và ghi rõ là regression có thể do task này hoặc do task khác trong cùng đợt deploy.
    - Còn ảnh render chờ review: giữ `ready-to-deploy`, chờ người dùng xem.
 6b. **CCR (P7)** — chỉ cho task đủ điều kiện Done. Mục đích: đưa hành vi vừa được verify vào knowledge `qa-knowledge`. Mỗi task một CCR.
    - **Soạn** bằng skill `create-ccr` (tool `Skill`). Repo đích `../qa-knowledge` (phụ lục `how-to-request/ccr-product-appendix.md`, product `teeinblue`). Input lấy từ `runs/<KEY>/` (`analysis.md`, `decisions.md`, `testcases.json`, `results.md`) cùng kết quả production của lượt này; đọc Jira chỉ khi MCP Atlassian dùng được.
      - **Claim** = BR của thay đổi có case `passed` trên staging và pass trên production. Không đưa case `expected-unconfirmed`, assumption chưa được trả lời, hay quan sát ngoài BR.
      - **Nguồn:** `test_case` (id case Testlane + ngày chạy production), cộng `po_dev_confirm` nếu `decisions.md` có câu trả lời PO/Dev. Ngày nguồn = ngày chạy test hoặc ngày comment, **không** phải ngày resolve ticket. Trích nguyên văn: expected result / actual result của case, câu trả lời trong `decisions.md`.
-     - **Địa chỉ (Phần 1b):** key IA của analysis. Key nằm ở dòng `Knowledge gap:` (key local) → `feature_key` ghi `MỚI: <slug>`, kèm `name` và `scope` (Thuộc / Không thuộc) lấy từ `node scripts/tib/sync_objects.mjs --show <key>`. Object local → nêu thành ý tưởng ở Phần 1a, không ghi như key có thật. Không đưa tag `TIB-xxxx`.
-     - **Mục `[BẠN]`** không hỏi người dùng: 4.1 = nguồn ở trên; 4.2 = Out of Scope (7b) của analysis + "key `MỚI:` chỉ là đề xuất"; mức gấp `MEDIUM` (dùng `HIGH` chỉ khi CCR sửa một item knowledge đang sai với hành vi vừa verify); Phần 0 = 1 CCR cho task này. Ghi các lựa chọn này vào báo cáo để người dùng sửa nếu cần.
-     - Lưu file: `runs/<KEY>/ccr.md`. Mục trong `rules/tib-product-behaviors.md` có nguồn từ ticket này → đưa vào cùng CCR như một claim.
+     - **Object / feature:** key IA của analysis. Key nằm ở dòng `Knowledge gap:` (key local) → `feature_key` ghi `MỚI: <slug>`, kèm `name` và `scope` (Thuộc / Không thuộc) lấy từ `node scripts/tib/sync_objects.mjs --show <key>`. Object local → nêu thành ghi chú trong claim, không ghi như key có thật. Không đưa tag `TIB-xxxx`.
+     - **Không hỏi người dùng:** mức gấp `MEDIUM` (dùng `HIGH` chỉ khi CCR sửa một item knowledge đang sai với hành vi vừa verify), 1 CCR cho task này, chỉ giữ khối có dùng. Ghi các lựa chọn này vào report.
+     - Lưu file: `runs/<KEY>/ccr.md`. Mọi dòng ở mục 15 "BR cho CCR" của analysis → đưa vào cùng CCR như một claim (nguồn `po_dev_confirm`, người xác nhận và trích nguyên văn lấy từ bảng). Mục trong `rules/tib-product-behaviors.md` có nguồn từ ticket này cũng đưa vào. Mục "Cập nhật flow" trong `results.md` đưa vào khối C.
    - **Đính vào task:** `get_task_ccr` trước. `ccrStatus = submitted` → task đã submit rồi, không đính lại; coi là đã xong bước này. Còn lại → `set_task_ccr_file` (filename `CCR-<YYYY-MM-DD>-<KEY>.md`).
    - **Submit** bằng tool MCP submit CCR của task (dự kiến `submit_ccr`). Session chưa có tool này → dừng ở đây: task giữ `ready-to-deploy`, `manifest.tasks.<KEY>.state = "ccr-attached"`, báo người dùng. **Không** dùng `create_proposal` thay thế, vì proposal tạo kiểu đó mất liên kết với task.
    - **Không** kéo Proposal sang `in-progress`: người dùng tự kéo khi muốn context builder xử lý. Phần xử lý sau submit không còn liên quan tới task.
    - Submit lỗi (vd còn `<<<`) → sửa file, đính lại, submit lại. Vẫn lỗi → giữ `ready-to-deploy`, báo lỗi.
    - Submit thành công → ghi proposal id vào `manifest.tasks.<KEY>.ccr` và `runs/<KEY>/state.json`, rồi `update_task` → `done`.
-7. Cập nhật `manifest.tasks.<KEY>.state` = `prod-pass` / `ccr-attached` / `done` hoặc `prod-fail`, và ngày.
+7. Cập nhật `manifest.tasks.<KEY>.state` = `prod-pass` / `ccr-attached` / `done` / `prod-fail` / `prod-not-run` (kết luận `NOT-RUN`: ghi `blockedBy` = cần gì để chạy), và ngày.
 
 ## Báo cáo (trả về)
 
@@ -88,7 +90,8 @@ Input là danh sách task. Chạy tất cả cùng lúc.
 ## Production verify — <ngày> — TIB-a, TIB-b
 Preflight: bundle SDK <Last-Modified>, store <…>, session OK
 | Task | Spec của task | Regression | Kết luận | CCR (file · proposal id / chưa submit) | Status Testlane |
-### Spec không pass — phân loại + evidence
+### Spec không pass — phân loại + evidence (`evidence/<KEY>/production-<ngày>/`)
+### Spec not-run — thiếu gì (fixture / session / quyết định của người dùng)
 ### Render cần xem — evidence/<KEY>/render-review/…
 ### Fixture production đã dựng (ID/link) · helper/spec đã sửa
 ### CCR — claim nào, key `MỚI:` nào, mục [BẠN] đã tự điền (nguồn, mức gấp) để người dùng sửa nếu cần

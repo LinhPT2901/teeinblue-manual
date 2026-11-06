@@ -36,10 +36,10 @@ Chỉ được hỏi **tối đa 1 câu** trước khi bắt đầu. Mọi thứ
 
 ## Nguồn tra trước khi lập plan
 
-- `rules/env-capabilities.md` — store/instance nào cho case nào (Checkout page → linh-tib-checkout Plus; Boundless → 287/561), giới hạn MCP. Case nhãn `env-blocked` thì **không dựng data** cho nó.
+- Guide mục 3, 4 (`../qa-knowledge/products/teeinblue/_product-guide.md`) — store nào cho việc gì. Giới hạn tool: `_flows/environment.md`. Case nhãn `env-blocked` thì **không dựng data** cho nó.
 - `.claude/tib-reusable-test-data.md` — data đặc thù có sẵn (account no-Mapbox, onboarding, victim org 94, campaign trạng thái hiếm). Dùng lại trước khi tính tạo mới hay đưa vào Blocked; xác minh trước khi dùng.
 - `runs/<KEY>/ledger.md` — data đã dựng cho issue này ở lượt trước (dùng lại nếu còn đúng).
-- `.claude/tib-operational-lessons.md` — cách phục hồi blocked đã gặp.
+- `_flows/troubleshooting.md` trong `../qa-knowledge/products/teeinblue/_flows/` — cách gỡ block đã gặp.
 
 ## Quy trình
 
@@ -190,7 +190,7 @@ Nếu không thoả điều kiện nào → **bỏ qua Postman**, nói rõ trong
 - **Token staging lấy từ `.env` được gắn thẳng vào collection** (người dùng xác nhận 2026-10-08: Team Workspace hiện không có member nào khác; nếu có thêm member → hỏi lại trước khi gắn token). Chỉ dùng token **staging**, không bao giờ token production; không đưa password đăng nhập, session cookie hay `POSTMAN_API_KEY` vào Postman; không in giá trị token ra chat.
 - **Không sửa data có sẵn** để "tiện" — luôn tạo mới.
 - **Không tự chạy load test / hammer endpoint** trong lúc setup. Skill này chỉ *tạo* collection để QA chạy tay; việc bắn N request là bước execute, không phải bước setup.
-- **Không bịa data requirement.** Test case không nói rõ cấu hình → lấy theo `analysis.md`/rules; vẫn không rõ thì chọn cấu hình tối giản và ghi Assumption. Chỉ đưa vào **Blocked / cần người khác làm** khi đã tra catalog + env-capabilities + lessons mà vẫn không dựng được (proxy/CDN, log server, branch chưa deploy, config server).
+- **Không bịa data requirement.** Test case không nói rõ cấu hình → lấy theo `analysis.md`/rules; vẫn không rõ thì chọn cấu hình tối giản và ghi Assumption. Chỉ đưa vào **Blocked / cần người khác làm** khi đã tra catalog + guide + `_flows/troubleshooting.md` mà vẫn không dựng được (proxy/CDN, log server, branch chưa deploy, config server).
 - **Không tạo/sửa issue Jira.** Skill chỉ đọc Jira.
 - Việc deploy branch, chạy migration, đổi config server **không** thuộc skill này — chỉ liệt kê ra như điều kiện tiên quyết.
 

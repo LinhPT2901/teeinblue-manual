@@ -33,11 +33,9 @@ Người chỉ review ở Gate 1 và Gate 2. Gặp lỗi thì ghi lại và ch�
 | `../qa-knowledge/products/teeinblue/_flows/` | Cách làm từng luồng, môi trường, cách gỡ block (repo qa-knowledge) |
 | `rules/tib-product-behaviors.md` | Hành vi sản phẩm đã được PO/Dev xác nhận (by design, phạm vi đã chốt) |
 | `.claude/tib-reusable-test-data.md` | Danh mục data đặc thù dùng lại được (account, store, campaign trạng thái hiếm) |
-| `apis/` | Postman collection theo ticket, cùng script sinh collection từ Redoc |
 | `tests/`, `playwright.config.ts` | Playwright test (upload ảnh, server-side upload) |
-| `scripts/` | Tạo token Open API, đẩy collection/environment lên Postman, login Shopify; `tib_runctl.py` (giữ quyền tài nguyên dùng chung + nhật ký thay đổi tạm), `issue_timing.py` (mốc thời gian từng bước), `baseline_from_transcripts.py` (baseline thời gian từ transcript), `make-mcp-storage-state.mjs` (session login sẵn cho Playwright MCP chạy song song) |
-| `docs/` | QA checklist (artwork 2.0, layer, paragraph, checkout extensions), báo cáo QA, template đo lường thời gian |
-| `testcases/` | Test case đã xuất (json/xlsx) |
+| `scripts/` | Tạo token Open API (kèm đẩy lên environment Postman), login Shopify; `tib_runctl.py` (giữ quyền tài nguyên dùng chung + nhật ký thay đổi tạm), `issue_timing.py` (mốc thời gian từng bước), `baseline_from_transcripts.py` (baseline thời gian từ transcript), `make-mcp-storage-state.mjs` (session login sẵn cho Playwright MCP chạy song song) |
+| `docs/checkout-extensions-app-blocks.md` | Hành vi app block Checkout / Thank You / Order Status |
 
 ## Cài đặt
 

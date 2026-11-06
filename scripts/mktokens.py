@@ -135,35 +135,6 @@ else:
 open(ENV, "w").write(content)
 print("\nda ghi vao .env")
 
-# .env.example: cung key, khong co gia tri
-ex = open(PROJ + "/.env.example").read()
-ex_block = [BEGIN.replace("tu dong tao boi QA", "dien gia tri that vao .env"),
-            "# Tao token bang POST /api/tokens voi {\"name\":\"...\",\"abilities\":[...]}",
-            "# Gia tri plain CHI hien dung luc tao. Ability hop le:",
-            "#   orders:read orders:write customizations:read campaigns:read products:read mcp:access",
-            "",
-            "TIB_API_BASE=https://staging-api.teeinblue.com",
-            "TIB_OPENAPI_BASE=https://staging-api.teeinblue.com/openapi/v1",
-            "",
-            "TIB_API_TOKEN=",
-            "TIB_ORDERS_READ_TOKEN=",
-            "TIB_CUSTOMIZATIONS_READ_TOKEN=",
-            "TIB_FORBIDDEN_TOKEN=",
-            "TIB_INVALID_TOKEN=invalid-token",
-            "",
-            "# Postman sync (tuy chon) - co key thi script tu day token len environment",
-            "# 'TIB Staging - Open API'. Lay key tai https://go.postman.co/settings/me/api-keys",
-            "POSTMAN_API_KEY=",
-            "POSTMAN_ENV_ID=8c4e7af8-4bdd-4074-961c-626282e1a2a9",
-            END]
-if BEGIN in ex:
-    ex = re.sub(re.escape(BEGIN) + r".*?" + re.escape(END), "\n".join(ex_block), ex, flags=re.S)
-else:
-    if not ex.endswith("\n"):
-        ex += "\n"
-    ex += "\n" + "\n".join(ex_block) + "\n"
-open(PROJ + "/.env.example", "w").write(ex)
-print("da ghi vao .env.example")
 
 
 # ---------------------------------------------------------------------------

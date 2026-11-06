@@ -29,3 +29,9 @@ Issue thêm cột/chip/badge trạng thái account vào bảng Staff (`/staffs`)
 - `GET /api/staffs` trả `has_password`, `two_factor_enabled`, `platform_staff`, `approved_at` (không lộ hash/secret).
 - Mapping thấy được: `approved_at` null → `Pending invite`; `platform_staff=true` → `SSO login` (tức SSO ≈ Shopify staff, không phải Google); platform + `has_password=false` → `2FA via SSO`; platform + có password → `2FA`/`2FA off` theo `two_factor_enabled`; không phải platform + approved → `Password` + 2FA.
 - Staff vừa active vừa có invite pending trong cùng org bị trả 2 dòng (1 active, 1 `Pending invite`).
+
+## Đã xác nhận (TIB-5334, description + QA plan dev cập nhật 2026-10-29)
+- Mỗi cách đăng nhập là 1 chip: `Password`, `Shopify SSO` (đổi tên từ "SSO login"), `Google`; sau đó tới chip 2FA. `2FA via SSO` đổi tên thành `2FA via Shopify`, và chỉ hiện khi Shopify là cách đăng nhập duy nhất.
+- Chip `Google` lấy từ `staffs.google_id`: chỉ có sau lần Google login **thành công** đầu tiên, vẫn còn sau khi logout; login bị reject thì không có chip.
+- Staff không có password nhưng có Google → `No password` `Google` `2FA off` (không phải `2FA via Shopify`). Shopify + có password → `Password` `Shopify SSO` + chip 2FA thật. Invite pending → chỉ `Pending invite`.
+- Câu cần hỏi: Staff Shopify không có password đăng nhập bằng Google thì chip `No password` có hiện cạnh `Shopify SSO` không? `google_id` lưu theo account → chip có hiện ở mọi org không?

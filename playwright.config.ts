@@ -29,7 +29,13 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/shopify.json',
       },
+      testIgnore: /tests\/api\//,
       dependencies: ['setup'],
+    },
+    // Script API theo task: không cần browser và session Shopify.
+    {
+      name: 'api',
+      testMatch: /tests\/api\/.*\.spec\.ts/,
     },
   ],
 });

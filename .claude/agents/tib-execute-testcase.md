@@ -83,6 +83,11 @@ Mỗi lần gọi tool tốn một vòng model suy nghĩ (~6–12s). Baseline 20
    node scripts/tib/run.mjs --key TIB-xxxx [--parallel 3] runs/TIB-xxxx/cases/
    ```
    Case file đặt ở `runs/<KEY>/cases/NN-<tc>.mjs`, dùng helper có sẵn (`sf.open/fill/upload/addToCart/cart/storage/previewSvg/bundle`, `api.campaign/customization`, `net.capture/throttle/fail`, `until`, `check`, `shot`). Tài liệu + ví dụ: `scripts/tib/README.md`, `scripts/tib/examples/`. **Không tự viết lại** đoạn mở storefront / qua password / điền field / ATC.
+1b. **Case API có khối `api_script` trong `data.json`** → chạy script của task, không gọi tay từng request:
+   ```
+   PLAYWRIGHT_JSON_OUTPUT_NAME=runs/<KEY>/api-results.json npx playwright test --project=api tests/api/<KEY>.spec.ts --reporter=list,json
+   ```
+   Agent tự kết luận từng case từ kết quả này. Response 403 là trang Cloudflare nghĩa là WAF chặn payload, chưa phải kết quả của app. Case thiếu trong script thì thêm vào đúng file đó.
 2. Runner chỉ ghi `pass | fail | error` của từng `check()`. **Agent vẫn tự kết luận** theo Nguyên tắc kết luận và Quy tắc 2 (`error` có thể là lỗi luồng test hoặc lỗi setup/tool — đọc trace/ảnh rồi phân loại), rồi mới `update_test_case`. `check` phải bám đúng expected result của case, không thay bằng điều kiện dễ hơn.
 3. **Không chờ cố định.** Không dùng `waitForTimeout` > 100ms hay `sleep` trong Bash để đợi trạng thái. Chờ đúng điều kiện: `waitForResponse`, `locator.waitFor`, `until(fn)` trong case, `node scripts/tib/poll.mjs` trong shell (thoát ngay khi đạt). Ngoại lệ: 60ms sau khi gõ để qua debounce SDK (đã có trong `sf.fill`).
 4. Throttle / route giả lỗi đặt **trong case file** sống cùng browser context của case và mất khi context đóng ⇒ không cần `R change`/`R restored` cho loại này. Chỉ thay đổi trên server MCP (dùng chung giữa các case) mới phải ghi `R change`.

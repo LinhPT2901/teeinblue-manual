@@ -25,7 +25,6 @@ Người chỉ review ở Gate 1 và Gate 2. Gặp lỗi thì ghi lại và ch�
 | `.claude/skills/gen-testcase` | Sinh test case và tạo lên Testlane (Project → Task → Test Case). Có script xuất xlsx / Google Sheets |
 | `.claude/skills/create-test-data` | Suy ra test data cần cho một task Testlane, gọi agent `tib-test-data`, tạo Postman collection |
 | `.claude/skills/create-ccr` | Soạn Context Change Request từ ticket đã ship để cập nhật QA context |
-| `.claude/skills/jira-create-automation-task` | Tạo task Jira cho phần việc automation vừa làm |
 | `.claude/agents/tib-test-data.md` | Tạo campaign/artwork/layer trên staging portal qua UI (Playwright MCP) |
 | `.claude/agents/tib-execute-testcase.md` | Chạy test case trên Testlane, verify trên staging, ghi status + actual result |
 | `.claude/agents/tib-genai-timing.md` | Đo thời gian upload và xử lý GenAI trên storefront, xác định model AI |
@@ -34,6 +33,7 @@ Người chỉ review ở Gate 1 và Gate 2. Gặp lỗi thì ghi lại và ch�
 | `rules/tib-product-behaviors.md` | Hành vi sản phẩm đã được PO/Dev xác nhận (by design, phạm vi đã chốt) |
 | `.claude/tib-reusable-test-data.md` | Danh mục data đặc thù dùng lại được (account, store, campaign trạng thái hiếm) |
 | `tests/`, `playwright.config.ts` | Playwright test (upload ảnh, server-side upload) |
+| `tests/api/` | Script API theo task (`<KEY>.spec.ts`), dùng khi không tạo được collection trên Postman |
 | `scripts/` | Tạo token Open API (kèm đẩy lên environment Postman), login Shopify; `tib_runctl.py` (giữ quyền tài nguyên dùng chung + nhật ký thay đổi tạm), `issue_timing.py` (mốc thời gian từng bước), `baseline_from_transcripts.py` (baseline thời gian từ transcript), `make-mcp-storage-state.mjs` (session login sẵn cho Playwright MCP chạy song song) |
 | `docs/checkout-extensions-app-blocks.md` | Hành vi app block Checkout / Thank You / Order Status |
 

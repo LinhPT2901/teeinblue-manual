@@ -177,11 +177,23 @@ Nếu không thoả điều kiện nào → **bỏ qua Postman**, nói rõ trong
 
 4. Nếu data bổ sung xuất hiện sau khi đã tạo collection (vd người dùng đặt order xong), cập nhật lại `collection.variable` bằng `mcp__postman__patchCollection` / `putCollection` — không bảo người dùng tự điền.
 
+### Bước 5b — Không tạo được collection thì viết script theo task
+
+Dùng khi Postman không tạo được collection: MCP Postman không kết nối, lỗi xác thực, hết quota, hoặc gọi tạo vẫn lỗi sau một lần thử lại. Không bỏ qua case API, không nhờ người dùng tự tạo collection.
+
+1. Viết **một file cho một task**: `tests/api/<KEY>.spec.ts`. Không gộp nhiều task vào một file.
+2. Dùng helper `tests/api/_lib.ts`: `openApi('<TÊN_BIẾN_TOKEN>')`, `portalApi(...)`, `env(...)`, `runData('<KEY>')`. Bỏ tên biến để gọi không có `Authorization`.
+3. Mỗi case một `test()`, tên bắt đầu bằng mã case (`TC-TIB-1234: ...`), assert đủ các vế của expected result.
+4. Repo là public: token chỉ gọi qua tên biến `.env`; id lấy từ `runs/<KEY>/data.json`, không ghi cứng token, id account, tên store.
+5. Kiểm tra script nạp được: `npx playwright test --project=api tests/api/<KEY>.spec.ts --list`. Bước này không gọi API; execute mới chạy thật.
+6. Thêm khối `api_script` vào `data.json`: `{ "path": "tests/api/<KEY>.spec.ts", "cases": ["TC-TIB-1234"], "reason": "<vì sao không tạo được collection>" }`.
+
 ### Bước 6 — Verify và ghi lại
 
 - Data UI: tin vào **báo cáo verify của agent** `tib-test-data` (agent tự verify bằng cách mở lại item). Nếu agent báo fail hoặc dở dang → báo fail thẳng, **không** kết luận là đã tạo xong.
 - Postman: đọc lại collection vừa tạo (`mcp__postman__getCollection`) xác nhận đủ folder/request rồi mới báo cáo.
-- Agent `tib-test-data` tự ghi `runs/<KEY>/ledger.md` + `runs/<KEY>/data.json`. Skill này **không ghi trùng** vào ledger; chỉ thêm khối `postman` (collection id, tên biến) vào `data.json`.
+- Script API: lệnh `--list` ở Bước 5b hiện đủ các case rồi mới báo cáo.
+- Agent `tib-test-data` tự ghi `runs/<KEY>/ledger.md` + `runs/<KEY>/data.json`. Skill này **không ghi trùng** vào ledger; chỉ thêm khối `postman` (collection id, tên biến) hoặc `api_script` vào `data.json`.
 
 ## Guardrails
 
@@ -209,6 +221,7 @@ Bảng: Item | Loại | ID | URL | Trạng thái | Phục vụ TC
 
 ### 3. Postman
 Collection name + ID, số request, danh sách biến collection (chỉ tên, không in giá trị token) và biến nào còn rỗng + lý do.
+(Hoặc: đường dẫn script `tests/api/<KEY>.spec.ts`, số case và lý do không tạo được collection.)
 (Hoặc: "Không cần — issue thuần UI", kèm lý do.)
 
 ### 4. Điều kiện tiên quyết chưa sẵn sàng
